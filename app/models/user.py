@@ -1,3 +1,4 @@
+from datetime import datetime
 from ..extensions import db
 from .base import BaseModel
 
@@ -15,6 +16,10 @@ class User(BaseModel):
     profile_image = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, default=True, nullable=False,
                           server_default='true')
+
+    # Password reset fields
+    password_reset_token = db.Column(db.String(255), nullable=True)
+    password_reset_expires = db.Column(db.DateTime, nullable=True)
 
     # Constraints
     __table_args__ = (

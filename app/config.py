@@ -26,8 +26,23 @@ class Config:
     UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 16777216))
 
-    
+
     NOTIFICATION_SERVICE_URL = os.getenv('NOTIFICATION_SERVICE_URL', 'http://localhost:5001')
+
+    # Email configuration
+    MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
+    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'true').lower() == 'true'
+    MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'false').lower() == 'true'
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@agrikonnect.com')
+
+    # Password reset token expiry (in seconds)
+    PASSWORD_RESET_EXPIRES = int(os.getenv('PASSWORD_RESET_EXPIRES', 3600))
+
+    # Frontend URL for password reset links
+    FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
 class TestConfig(Config):
     TESTING = True

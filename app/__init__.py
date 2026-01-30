@@ -5,8 +5,11 @@ from flask_migrate import Migrate
 from flask_restx import Api
 
 from .config import Config
-from .extensions import db
+from .extensions import db, mail
 from .routes import register_routes
+
+# JWT token blocklist for logout functionality
+jwt_blocklist = set()
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -14,9 +17,16 @@ def create_app(config_class=Config):
 
     # Initialize extensions
     CORS(app)
-    JWTManager(app)
+    jwt = JWTManager(app)
     db.init_app(app)
+    mail.init_app(app)
     Migrate(app, db)
+
+    # JWT blocklist callback
+    @jwt.token_in_blocklist_loader
+    def check_if_token_revoked(jwt_header, jwt_payload):
+        jti = jwt_payload['jti']
+        return jti in jwt_blocklist
 
     # Initialize API
     api = Api(
