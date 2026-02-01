@@ -3,6 +3,8 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
 from flask_restx import Api
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from .config import Config
 from .extensions import db, mail
@@ -15,8 +17,22 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    # Initialize rate limiter
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://"
+    )
+
+    # Apply to auth routes
+    @limiter.limit("5 per minute")
+    def login():
+        pass
+
     # Initialize extensions
-    CORS(app)
+    # Explicitly allow the frontend origin for API routes and enable credentials/support for preflight
+    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]}}, supports_credentials=True)
     jwt = JWTManager(app)
     db.init_app(app)
     mail.init_app(app)
@@ -33,8 +49,12 @@ def create_app(config_class=Config):
         app,
         title='Agrikonnect API',
         version='1.0',
-        description='RESTful API for Agrikonnect agricultural platform',
-        doc='/api/docs'
+        description='RESTful API for Agrikonnect agricultural platform. This API provides endpoints for user authentication, community management, expert consultations, and agricultural content sharing.',
+        doc='/api/docs',
+        contact='Agrikonnect Team',
+        contact_email='support@agrikonnect.com',
+        license='MIT',
+        license_url='https://opensource.org/licenses/MIT'
     )
 
     # Register routes

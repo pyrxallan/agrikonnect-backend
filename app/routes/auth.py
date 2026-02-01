@@ -20,97 +20,153 @@ auth_ns = Namespace('auth', description='Authentication operations')
 
 # Request/Response models
 register_model = auth_ns.model('Register', {
-    'email': fields.String(required=True, description='User email'),
-    'password': fields.String(required=True, description='User password'),
-    'first_name': fields.String(required=True, description='First name'),
-    'last_name': fields.String(required=True, description='Last name'),
-    'role': fields.String(enum=['farmer', 'expert'], default='farmer', description='User role')
+    'email': fields.String(required=True, description='User email address', example='user@example.com'),
+    'password': fields.String(required=True, description='User password (min 8 characters)', example='password123'),
+    'first_name': fields.String(required=True, description='User first name', example='John'),
+    'last_name': fields.String(required=True, description='User last name', example='Doe'),
+    'role': fields.String(enum=['farmer', 'expert'], default='farmer', description='User role', example='farmer')
 })
 
 login_model = auth_ns.model('Login', {
-    'email': fields.String(required=True, description='User email'),
-    'password': fields.String(required=True, description='User password')
+    'email': fields.String(required=True, description='User email address', example='user@example.com'),
+    'password': fields.String(required=True, description='User password', example='password123')
+})
+
+user_response_model = auth_ns.model('UserResponse', {
+    'id': fields.Integer(description='User ID'),
+    'email': fields.String(description='User email'),
+    'first_name': fields.String(description='First name'),
+    'last_name': fields.String(description='Last name'),
+    'role': fields.String(description='User role'),
+    'bio': fields.String(description='User biography'),
+    'location': fields.String(description='User location'),
+    'profile_image': fields.String(description='Profile image URL'),
+    'is_active': fields.Boolean(description='Account status'),
+    'created_at': fields.DateTime(description='Account creation date'),
+    'updated_at': fields.DateTime(description='Last update date')
+})
+
+auth_response_model = auth_ns.model('AuthResponse', {
+    'message': fields.String(description='Response message'),
+    'user': fields.Nested(user_response_model, description='User information'),
+    'token': fields.String(description='JWT access token'),
+    'refresh_token': fields.String(description='JWT refresh token')
 })
 
 forgot_password_model = auth_ns.model('ForgotPassword', {
-    'email': fields.String(required=True, description='User email')
+    'email': fields.String(required=True, description='User email address', example='user@example.com')
 })
 
 reset_password_model = auth_ns.model('ResetPassword', {
-    'token': fields.String(required=True, description='Password reset token'),
-    'password': fields.String(required=True, description='New password')
+    'token': fields.String(required=True, description='Password reset token from email'),
+    'password': fields.String(required=True, description='New password (min 8 characters)', example='newpassword123')
+})
+
+token_response_model = auth_ns.model('TokenResponse', {
+    'message': fields.String(description='Response message'),
+    'token': fields.String(description='New JWT access token'),
+    'refresh_token': fields.String(description='New JWT refresh token')
 })
 
 
 @auth_ns.route('/register')
 class Register(Resource):
     @auth_ns.expect(register_model)
-    @auth_ns.response(201, 'User created successfully')
+    @auth_ns.marshal_with(auth_response_model, code=201)
+    @auth_ns.response(201, 'User created successfully', auth_response_model)
     @auth_ns.response(400, 'Validation error')
+    @auth_ns.response(500, 'Internal server error')
     def post(self):
         """Register a new user"""
-        data = auth_ns.payload
+        try:
+            data = auth_ns.payload or {}
 
-        # Check if user already exists
-        if User.query.filter_by(email=data['email']).first():
-            return {'message': 'User already exists'}, 400
+            # Accept both snake_case and camelCase from frontend
+            email = data.get('email')
+            password = data.get('password')
+            first_name = data.get('first_name') or data.get('firstName')
+            last_name = data.get('last_name') or data.get('lastName')
+            role = data.get('role') or data.get('userType') or data.get('user_type') or 'farmer'
 
-        # Validate password strength
-        password = data['password']
-        if len(password) < 8:
-            return {'message': 'Password must be at least 8 characters'}, 400
+            # Basic validation
+            if not email or not password or not first_name or not last_name:
+                return {'message': 'email, password, first_name and last_name are required'}, 400
 
-        # Create new user
-        hashed_password = generate_password_hash(data['password'])
-        user = User(
-            email=data['email'],
-            password=hashed_password,
-            first_name=data['first_name'],
-            last_name=data['last_name'],
-            role=data.get('role', 'farmer')
-        )
+            # Check if user already exists
+            if User.query.filter_by(email=email).first():
+                return {'message': 'User already exists'}, 400
 
-        db.session.add(user)
-        db.session.commit()
+            # Validate password strength
+            if len(password) < 8:
+                return {'message': 'Password must be at least 8 characters'}, 400
 
-        # Generate tokens
-        access_token = create_access_token(identity=user.id)
-        refresh_token = create_refresh_token(identity=user.id)
+            # Create new user
+            hashed_password = generate_password_hash(password)
+            user = User(
+                email=email,
+                password=hashed_password,
+                first_name=first_name,
+                last_name=last_name,
+                role=role
+            )
 
-        return {
-            'message': 'User created successfully',
-            'user': user.to_dict(),
-            'token': access_token,
-            'refresh_token': refresh_token
-        }, 201
+            db.session.add(user)
+            db.session.commit()
+
+            # Generate tokens
+            access_token = create_access_token(identity=user.id)
+            refresh_token = create_refresh_token(identity=user.id)
+
+            return {
+                'message': 'User created successfully',
+                'user': user.to_dict(),
+                'token': access_token,
+                'refresh_token': refresh_token
+            }, 201
+        except Exception as e:
+            current_app.logger.exception(f"Error during register: {str(e)}")
+            return {'message': 'Internal server error'}, 500
 
 
 @auth_ns.route('/login')
 class Login(Resource):
     @auth_ns.expect(login_model)
-    @auth_ns.response(200, 'Login successful')
+    @auth_ns.marshal_with(auth_response_model, code=200)
+    @auth_ns.response(200, 'Login successful', auth_response_model)
+    @auth_ns.response(400, 'Validation error')
     @auth_ns.response(401, 'Invalid credentials')
+    @auth_ns.response(500, 'Internal server error')
     def post(self):
         """Login user"""
-        data = auth_ns.payload
+        try:
+            data = auth_ns.payload or {}
 
-        user = User.query.filter_by(email=data['email']).first()
+            email = data.get('email')
+            password = data.get('password')
 
-        if not user or not check_password_hash(user.password, data['password']):
-            return {'message': 'Invalid credentials'}, 401
+            if not email or not password:
+                return {'message': 'Email and password are required'}, 400
 
-        if not user.is_active:
-            return {'message': 'Account is deactivated'}, 401
+            user = User.query.filter_by(email=email).first()
 
-        access_token = create_access_token(identity=user.id)
-        refresh_token = create_refresh_token(identity=user.id)
+            if not user or not check_password_hash(user.password, password):
+                return {'message': 'Invalid credentials'}, 401
 
-        return {
-            'message': 'Login successful',
-            'user': user.to_dict(),
-            'token': access_token,
-            'refresh_token': refresh_token
-        }, 200
+            if not user.is_active:
+                return {'message': 'Account is deactivated'}, 401
+
+            access_token = create_access_token(identity=user.id)
+            refresh_token = create_refresh_token(identity=user.id)
+
+            return {
+                'message': 'Login successful',
+                'user': user.to_dict(),
+                'token': access_token,
+                'refresh_token': refresh_token
+            }, 200
+        except Exception as e:
+            current_app.logger.exception(f"Error during login: {str(e)}")
+            return {'message': 'Internal server error'}, 500
 
 
 @auth_ns.route('/forgot-password')
@@ -209,8 +265,10 @@ class ResetPassword(Resource):
 @auth_ns.route('/refresh')
 class TokenRefresh(Resource):
     @jwt_required(refresh=True)
-    @auth_ns.response(200, 'Token refreshed')
+    @auth_ns.marshal_with(token_response_model, code=200)
+    @auth_ns.response(200, 'Token refreshed', token_response_model)
     @auth_ns.response(401, 'Invalid refresh token')
+    @auth_ns.response(500, 'Internal server error')
     def post(self):
         """Refresh access token"""
         current_user_id = get_jwt_identity()
@@ -242,8 +300,10 @@ class Logout(Resource):
 @auth_ns.route('/me')
 class CurrentUser(Resource):
     @jwt_required()
-    @auth_ns.response(200, 'Current user data')
+    @auth_ns.marshal_with(user_response_model, code=200)
+    @auth_ns.response(200, 'Current user data', user_response_model)
     @auth_ns.response(401, 'Unauthorized')
+    @auth_ns.response(404, 'User not found')
     def get(self):
         """Get current authenticated user"""
         current_user_id = get_jwt_identity()
@@ -255,3 +315,30 @@ class CurrentUser(Resource):
         return {
             'user': user.to_dict()
         }, 200
+
+
+@auth_ns.route('/verify-token')
+class VerifyToken(Resource):
+    @jwt_required()
+    @auth_ns.response(200, 'Token is valid')
+    @auth_ns.response(401, 'Token is invalid or expired')
+    def get(self):
+        """Verify if the current JWT token is valid"""
+        try:
+            current_user_id = get_jwt_identity()
+            user = User.query.get(current_user_id)
+
+            if not user:
+                return {'message': 'User not found'}, 401
+
+            if not user.is_active:
+                return {'message': 'Account is deactivated'}, 401
+
+            return {
+                'message': 'Token is valid',
+                'user_id': current_user_id,
+                'valid': True
+            }, 200
+        except Exception as e:
+            current_app.logger.exception(f"Error verifying token: {str(e)}")
+            return {'message': 'Token verification failed'}, 401

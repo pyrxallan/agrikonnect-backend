@@ -7,29 +7,31 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
 
-    database_url = os.getenv('DATABASE_URL')
-    if database_url:
-        SQLALCHEMY_DATABASE_URI = database_url
+    # Database Configuration
+    DATABASE_URL = os.getenv('DATABASE_URL')
+    if DATABASE_URL:
+        SQLALCHEMY_DATABASE_URI = DATABASE_URL
     else:
-        
         SQLALCHEMY_DATABASE_URI = 'sqlite:///agrikonnect.db'
+    
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # JWT Configuration
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
     JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 3600))
     JWT_REFRESH_TOKEN_EXPIRES = int(os.getenv('JWT_REFRESH_TOKEN_EXPIRES', 2592000))
 
-    
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
+    # CORS Configuration
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://localhost:3000').split(',')
 
-
+    # Upload Configuration
     UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 16777216))
 
-
+    # Notification Service
     NOTIFICATION_SERVICE_URL = os.getenv('NOTIFICATION_SERVICE_URL', 'http://localhost:5001')
 
-    # Email configuration
+    # Email Configuration
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
     MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
     MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'true').lower() == 'true'
@@ -38,10 +40,10 @@ class Config:
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@agrikonnect.com')
 
-    # Password reset token expiry (in seconds)
+    # Password Reset
     PASSWORD_RESET_EXPIRES = int(os.getenv('PASSWORD_RESET_EXPIRES', 3600))
 
-    # Frontend URL for password reset links
+    # Frontend URL
     FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
 class TestConfig(Config):
