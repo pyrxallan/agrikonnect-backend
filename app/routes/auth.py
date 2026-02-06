@@ -114,8 +114,8 @@ class Register(Resource):
             db.session.commit()
 
             # Generate tokens
-            access_token = create_access_token(identity=user.id)
-            refresh_token = create_refresh_token(identity=user.id)
+            access_token = create_access_token(identity=str(user.id))
+            refresh_token = create_refresh_token(identity=str(user.id))
 
             return {
                 'message': 'User created successfully',
@@ -155,8 +155,8 @@ class Login(Resource):
             if not user.is_active:
                 return {'message': 'Account is deactivated'}, 401
 
-            access_token = create_access_token(identity=user.id)
-            refresh_token = create_refresh_token(identity=user.id)
+            access_token = create_access_token(identity=str(user.id))
+            refresh_token = create_refresh_token(identity=str(user.id))
 
             return {
                 'message': 'Login successful',
