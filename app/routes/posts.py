@@ -207,7 +207,20 @@ class PostResource(Resource):
         if not post:
             return {'message': 'Post not found'}, 404
 
-        return _post_payload(post, current_user_id), 200   
+        return _post_payload(post, current_user_id), 200
+
+    @jwt_required()
+    def delete(self, post_id):
+        """Delete a post"""
+        current_user_id = int(get_jwt_identity())
+        post = Post.query.get(post_id)
+        if not post:
+            return {'message': 'Post not found'}, 404
+        if post.author_id != current_user_id:
+            return {'message': 'Unauthorized'}, 403
+        db.session.delete(post)
+        db.session.commit()
+        return {'message': 'Post deleted'}, 200   
 
 #like/unlike post, create comment for post, get comments for post
 @posts_ns.route('/<int:post_id>/like')
