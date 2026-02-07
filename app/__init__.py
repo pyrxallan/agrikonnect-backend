@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
@@ -17,11 +17,11 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Initialize rate limiter
+    # Initialize rate limiter with more generous limits for development
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
-        default_limits=["200 per day", "50 per hour"],
+        default_limits=["1000 per day", "200 per hour"],
         storage_uri="memory://"
     )
 
@@ -32,7 +32,10 @@ def create_app(config_class=Config):
 
     # Initialize extensions
     # Explicitly allow the frontend origin for API routes and enable credentials/support for preflight
-    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]}}, supports_credentials=True)
+    CORS(app, resources={
+        r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]},
+        r"/uploads/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]}
+    }, supports_credentials=True)
     jwt = JWTManager(app)
     db.init_app(app)
     mail.init_app(app)
@@ -59,6 +62,11 @@ def create_app(config_class=Config):
 
     # Register routes
     register_routes(api)
+
+    # Serve uploaded files
+    @app.route('/uploads/<path:filename>')
+    def uploaded_file(filename):
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
     # Create database tables
     with app.app_context():
