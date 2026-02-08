@@ -1,7 +1,8 @@
 services:
   - type: web
     name: agrikonnect-backend
-    env: python
+    runtime: python
+    plan: free
     buildCommand: ./build.sh
     startCommand: gunicorn run:app
     envVars:
@@ -20,9 +21,9 @@ services:
       - key: MAIL_SERVER
         sync: false
       - key: MAIL_PORT
-        value: 587
+        value: "587"
       - key: MAIL_USE_TLS
-        value: true
+        value: "true"
       - key: MAIL_USERNAME
         sync: false
       - key: MAIL_PASSWORD
@@ -32,5 +33,6 @@ services:
 
 databases:
   - name: agrikonnect-db
+    plan: free
     databaseName: agrikonnect
     user: agrikonnect
