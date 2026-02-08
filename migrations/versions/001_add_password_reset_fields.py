@@ -17,9 +17,15 @@ depends_on = None
 
 
 def upgrade():
-    # Add password reset columns to users table
-    op.add_column('users', sa.Column('password_reset_token', sa.String(255), nullable=True))
-    op.add_column('users', sa.Column('password_reset_expires', sa.DateTime(), nullable=True))
+    # Add password reset columns to users table if they don't exist
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = [col['name'] for col in inspector.get_columns('users')]
+    
+    if 'password_reset_token' not in columns:
+        op.add_column('users', sa.Column('password_reset_token', sa.String(255), nullable=True))
+    if 'password_reset_expires' not in columns:
+        op.add_column('users', sa.Column('password_reset_expires', sa.DateTime(), nullable=True))
 
 
 def downgrade():
