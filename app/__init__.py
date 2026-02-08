@@ -9,7 +9,7 @@ from flask_limiter.util import get_remote_address
 from .config import Config
 from .extensions import db, mail
 from .routes import register_routes
-
+from app.routes.messages import messages_bp  
 # JWT token blocklist for logout functionality
 jwt_blocklist = set()
 
@@ -17,7 +17,10 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Initialize rate limiter with more generous limits for development
+    # Register blueprints
+    app.register_blueprint(messages_bp)
+
+    # Initialize rate limiter
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
@@ -25,17 +28,34 @@ def create_app(config_class=Config):
         storage_uri="memory://"
     )
 
-    # Apply to auth routes
+    
     @limiter.limit("5 per minute")
     def login():
         pass
 
-    # Initialize extensions
-    # Explicitly allow the frontend origin for API routes and enable credentials/support for preflight
-    CORS(app, resources={
-        r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]},
-        r"/uploads/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]}
-    }, supports_credentials=True)
+    # CORS
+    CORS(
+        app,
+        resources={
+            r"/api/*": {
+                "origins": [
+                    "http://localhost:5173",
+                    "http://localhost:3000",
+                    "http://localhost:5000"
+                ]
+            },
+            r"/uploads/*": {
+                "origins": [
+                    "http://localhost:5173",
+                    "http://localhost:3000",
+                    "http://localhost:5000"
+                ]
+            }
+        },
+        supports_credentials=True
+    )
+
+    # Extensions
     jwt = JWTManager(app)
     db.init_app(app)
     mail.init_app(app)
@@ -44,31 +64,30 @@ def create_app(config_class=Config):
     # JWT blocklist callback
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
-        jti = jwt_payload['jti']
-        return jti in jwt_blocklist
+        return jwt_payload["jti"] in jwt_blocklist
 
-    # Initialize API
+    # Swagger API
     api = Api(
         app,
-        title='Agrikonnect API',
-        version='1.0',
-        description='RESTful API for Agrikonnect agricultural platform. This API provides endpoints for user authentication, community management, expert consultations, and agricultural content sharing.',
-        doc='/api/docs',
-        contact='Agrikonnect Team',
-        contact_email='support@agrikonnect.com',
-        license='MIT',
-        license_url='https://opensource.org/licenses/MIT'
+        title="Agrikonnect API",
+        version="1.0",
+        description="RESTful API for Agrikonnect agricultural platform.",
+        doc="/api/docs",
+        contact="Agrikonnect Team",
+        contact_email="support@agrikonnect.com",
+        license="MIT",
+        license_url="https://opensource.org/licenses/MIT"
     )
 
-    # Register routes
+    # Register other routes
     register_routes(api)
 
     # Serve uploaded files
-    @app.route('/uploads/<path:filename>')
+    @app.route("/uploads/<path:filename>")
     def uploaded_file(filename):
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+        return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
-    # Create database tables
+    # Dev-only table creation
     with app.app_context():
         db.create_all()
 
