@@ -70,11 +70,13 @@ class MarkAsRead(Resource):
 
 # Legacy Blueprint to support clients expecting /messages/* (non-API path)
 from flask import Blueprint, jsonify
+from flask_cors import cross_origin
 
 messages_bp = Blueprint('messages', __name__, url_prefix='/messages')
 
 
-@messages_bp.route('/', methods=['POST'])
+@messages_bp.route('/', methods=['POST', 'OPTIONS'])
+@cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 @jwt_required()
 def legacy_send_message():
     user_id = get_jwt_identity()
@@ -100,7 +102,8 @@ def legacy_send_message():
     return jsonify(message.to_dict()), 201
 
 
-@messages_bp.route('/inbox', methods=['GET'])
+@messages_bp.route('/inbox', methods=['GET', 'OPTIONS'])
+@cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 @jwt_required()
 def legacy_inbox():
     user_id = get_jwt_identity()
@@ -108,7 +111,8 @@ def legacy_inbox():
     return jsonify([m.to_dict() for m in messages]), 200
 
 
-@messages_bp.route('/sent', methods=['GET'])
+@messages_bp.route('/sent', methods=['GET', 'OPTIONS'])
+@cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 @jwt_required()
 def legacy_sent_messages():
     user_id = get_jwt_identity()
@@ -116,7 +120,8 @@ def legacy_sent_messages():
     return jsonify([m.to_dict() for m in messages]), 200
 
 
-@messages_bp.route('/<int:message_id>/read', methods=['PATCH'])
+@messages_bp.route('/<int:message_id>/read', methods=['PATCH', 'OPTIONS'])
+@cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 @jwt_required()
 def legacy_mark_as_read(message_id):
     user_id = get_jwt_identity()
