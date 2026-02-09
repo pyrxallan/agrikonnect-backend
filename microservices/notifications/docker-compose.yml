@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  notification-service:
+    build: .
+    ports:
+      - "5001:5001"
+    environment:
+      - DATABASE_URL=sqlite:///notifications.db
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
