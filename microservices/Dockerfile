@@ -2,17 +2,17 @@ FROM python:3.9-slim
 
 WORKDIR /service
 
-# Install dependencies
+# Copy requirements first
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the app code
+# Copy the rest of the application
 COPY . .
 
-# Set Python path so imports work correctly
+# Set Python path
 ENV PYTHONPATH=/service
 
 EXPOSE 5000
 
-# Run the application
+# Run the app
 CMD ["python", "app/app.py"]
