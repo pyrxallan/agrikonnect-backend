@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, render_template
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
@@ -17,14 +17,11 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Register blueprints
-    app.register_blueprint(messages_bp)
-
     # Initialize rate limiter
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
-        default_limits=["1000 per day", "200 per hour"],
+        default_limits=["200 per day", "50 per hour"],
         storage_uri="memory://"
     )
 
@@ -33,29 +30,9 @@ def create_app(config_class=Config):
     def login():
         pass
 
-    # CORS
-    CORS(
-        app,
-        resources={
-            r"/api/*": {
-                "origins": [
-                    "http://localhost:5173",
-                    "http://localhost:3000",
-                    "http://localhost:5000"
-                ]
-            },
-            r"/uploads/*": {
-                "origins": [
-                    "http://localhost:5173",
-                    "http://localhost:3000",
-                    "http://localhost:5000"
-                ]
-            }
-        },
-        supports_credentials=True
-    )
-
-    # Extensions
+    # Initialize extensions
+    # Explicitly allow the frontend origin for API routes and enable credentials/support for preflight
+    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]}}, supports_credentials=True)
     jwt = JWTManager(app)
     db.init_app(app)
     mail.init_app(app)
@@ -69,25 +46,26 @@ def create_app(config_class=Config):
     # Swagger API
     api = Api(
         app,
-        title="Agrikonnect API",
-        version="1.0",
-        description="RESTful API for Agrikonnect agricultural platform.",
-        doc="/api/docs",
-        contact="Agrikonnect Team",
-        contact_email="support@agrikonnect.com",
-        license="MIT",
-        license_url="https://opensource.org/licenses/MIT"
+        title='Agrikonnect API',
+        version='1.0',
+        description='RESTful API for Agrikonnect agricultural platform. This API provides endpoints for user authentication, community management, expert consultations, and agricultural content sharing.',
+        doc=False
     )
+
+    # Custom Swagger UI route
+    @app.route('/api/docs')
+    def swagger_ui():
+        return render_template('swagger.html')
+
+    # Serve static files
+    @app.route('/static/<path:filename>')
+    def static_files(filename):
+        return send_from_directory('app/static', filename)
 
     # Register other routes
     register_routes(api)
 
-    # Serve uploaded files
-    @app.route("/uploads/<path:filename>")
-    def uploaded_file(filename):
-        return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
-
-    # Dev-only table creation
+    # Create database tables
     with app.app_context():
         db.create_all()
 

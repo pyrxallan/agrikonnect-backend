@@ -17,20 +17,26 @@ depends_on = None
 
 
 def upgrade():
-    op.create_table('ratings',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('expert_id', sa.Integer(), nullable=False),
-        sa.Column('user_id', sa.Integer(), nullable=False),
-        sa.Column('rating', sa.Integer(), nullable=False),
-        sa.Column('review', sa.Text(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
-        sa.Column('updated_at', sa.DateTime(), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
-        sa.CheckConstraint('rating >= 1 AND rating <= 5', name='valid_rating'),
-        sa.ForeignKeyConstraint(['expert_id'], ['users.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('expert_id', 'user_id', name='unique_user_expert_rating')
-    )
+    # Create ratings table only if it doesn't exist
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_tables = inspector.get_table_names()
+    
+    if 'ratings' not in existing_tables:
+        op.create_table('ratings',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('expert_id', sa.Integer(), nullable=False),
+            sa.Column('user_id', sa.Integer(), nullable=False),
+            sa.Column('rating', sa.Integer(), nullable=False),
+            sa.Column('review', sa.Text(), nullable=True),
+            sa.Column('created_at', sa.DateTime(), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
+            sa.Column('updated_at', sa.DateTime(), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
+            sa.CheckConstraint('rating >= 1 AND rating <= 5', name='valid_rating'),
+            sa.ForeignKeyConstraint(['expert_id'], ['users.id'], ondelete='CASCADE'),
+            sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+            sa.PrimaryKeyConstraint('id'),
+            sa.UniqueConstraint('expert_id', 'user_id', name='unique_user_expert_rating')
+        )
 
 
 def downgrade():
