@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Agrikonnect API Documentation</title>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+  <link rel="stylesheet" type="text/css" href="/static/style.css">
+  <link rel="icon" type="image/png" href="/static/agrikonnect-icon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="page-container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <img src="/static/agrikkonect-logo.png" alt="Agrikonnect" class="sidebar-logo">
+      </div>
+      
+      <ul class="sidebar-menu">
+        <li><a class="api-link" data-tag="Authentication">Authentication</a></li>
+        <li><a class="api-link" data-tag="Communities">Communities</a></li>
+        <li><a class="api-link" data-tag="Posts">Posts & Feed</a></li>
+        <li><a class="api-link" data-tag="Experts">Expert Network</a></li>
+        <li><a class="api-link" data-tag="Messages">Messaging</a></li>
+        <li><a class="api-link" data-tag="Notifications">Notifications</a></li>
+      </ul>
+      
+      <div class="sidebar-footer">
+        <p><strong>Agrikonnect Platform</strong><br>
+        API Version 1.0<br>
+        &copy; 2024 All Rights Reserved</p>
+      </div>
+    </div>
+    
+    <div class="main-content">
+      <div id="swagger-ui"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+  <script>
+    window.onload = function() {
+      SwaggerUIBundle({
+        url: "/swagger.json",
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        layout: "BaseLayout"
+      });
+
+      // Sidebar navigation
+      setTimeout(() => {
+        document.querySelectorAll('.api-link').forEach(link => {
+          link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const tag = this.getAttribute('data-tag');
+            const tagElement = document.querySelector(`[data-tag="${tag}"]`);
+            if (tagElement) {
+              tagElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          });
+        });
+      }, 1000);
+    };
+  </script>
+</body>
+</html>

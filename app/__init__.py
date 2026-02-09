@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, render_template
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
@@ -17,11 +17,11 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Initialize rate limiter with more generous limits for development
+    # Initialize rate limiter
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
-        default_limits=["1000 per day", "200 per hour"],
+        default_limits=["200 per day", "50 per hour"],
         storage_uri="memory://"
     )
 
@@ -32,10 +32,7 @@ def create_app(config_class=Config):
 
     # Initialize extensions
     # Explicitly allow the frontend origin for API routes and enable credentials/support for preflight
-    CORS(app, resources={
-        r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]},
-        r"/uploads/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]}
-    }, supports_credentials=True)
+    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]}}, supports_credentials=True)
     jwt = JWTManager(app)
     db.init_app(app)
     mail.init_app(app)
@@ -53,20 +50,21 @@ def create_app(config_class=Config):
         title='Agrikonnect API',
         version='1.0',
         description='RESTful API for Agrikonnect agricultural platform. This API provides endpoints for user authentication, community management, expert consultations, and agricultural content sharing.',
-        doc='/api/docs',
-        contact='Agrikonnect Team',
-        contact_email='support@agrikonnect.com',
-        license='MIT',
-        license_url='https://opensource.org/licenses/MIT'
+        doc=False
     )
+
+    # Custom Swagger UI route
+    @app.route('/api/docs')
+    def swagger_ui():
+        return render_template('swagger.html')
+
+    # Serve static files
+    @app.route('/static/<path:filename>')
+    def static_files(filename):
+        return send_from_directory('app/static', filename)
 
     # Register routes
     register_routes(api)
-
-    # Serve uploaded files
-    @app.route('/uploads/<path:filename>')
-    def uploaded_file(filename):
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
     # Create database tables
     with app.app_context():
