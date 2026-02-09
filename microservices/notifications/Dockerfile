@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 WORKDIR /service
 
@@ -6,13 +6,12 @@ WORKDIR /service
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the app code
-COPY . .
+
+COPY app/ .
 
 # Set Python path so imports work correctly
 ENV PYTHONPATH=/service
 
 EXPOSE 5000
 
-# Run the application
-CMD ["python", "app/app.py"]
+CMD ["python", "app.py"]
