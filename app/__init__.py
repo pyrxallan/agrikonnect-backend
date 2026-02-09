@@ -8,8 +8,8 @@ from flask_limiter.util import get_remote_address
 
 from .config import Config
 from .extensions import db, mail
+# Register routes
 from .routes import register_routes
-from app.routes.messages import messages_bp  
 # JWT token blocklist for logout functionality
 jwt_blocklist = set()
 
