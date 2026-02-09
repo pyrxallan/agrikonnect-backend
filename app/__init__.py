@@ -30,12 +30,8 @@ def create_app(config_class=Config):
     def login():
         pass
 
-    # Initialize extensions
-    # Explicitly allow the frontend origin for API routes and enable credentials/support for preflight
-    CORS(app, resources={
-        r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]},
-        r"/uploads/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]}
-    }, supports_credentials=True)
+    # Initialize extensions - Allow all origins for development
+    CORS(app, origins="*", supports_credentials=True)
     jwt = JWTManager(app)
     db.init_app(app)
     mail.init_app(app)
