@@ -8,8 +8,8 @@ from flask_limiter.util import get_remote_address
 
 from .config import Config
 from .extensions import db, mail
+# Register routes
 from .routes import register_routes
-
 # JWT token blocklist for logout functionality
 jwt_blocklist = set()
 
@@ -25,7 +25,7 @@ def create_app(config_class=Config):
         storage_uri="memory://"
     )
 
-    # Apply to auth routes
+    
     @limiter.limit("5 per minute")
     def login():
         pass
@@ -41,10 +41,9 @@ def create_app(config_class=Config):
     # JWT blocklist callback
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
-        jti = jwt_payload['jti']
-        return jti in jwt_blocklist
+        return jwt_payload["jti"] in jwt_blocklist
 
-    # Initialize API
+    # Swagger API
     api = Api(
         app,
         title='Agrikonnect API',
@@ -63,7 +62,7 @@ def create_app(config_class=Config):
     def static_files(filename):
         return send_from_directory('app/static', filename)
 
-    # Register routes
+    # Register other routes
     register_routes(api)
 
     # Create database tables
