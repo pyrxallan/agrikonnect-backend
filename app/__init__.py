@@ -10,6 +10,7 @@ from .config import Config
 from .extensions import db, mail
 # Register routes
 from .routes import register_routes
+from app.routes.messages import messages_bp
 # JWT token blocklist for logout functionality
 jwt_blocklist = set()
 
@@ -64,6 +65,8 @@ def create_app(config_class=Config):
 
     # Register other routes
     register_routes(api)
+    # Register legacy blueprint for clients calling /messages/*
+    app.register_blueprint(messages_bp)
 
     # Create database tables
     with app.app_context():
