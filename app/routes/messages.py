@@ -107,8 +107,42 @@ def legacy_send_message():
 @jwt_required()
 def legacy_inbox():
     user_id = get_jwt_identity()
-    messages = Message.query.filter_by(receiver_id=user_id).order_by(Message.created_at.desc()).all()
-    return jsonify([m.to_dict() for m in messages]), 200
+    
+    # Get unique conversations with last message
+    subquery = db.session.query(
+        db.func.greatest(Message.sender_id, Message.receiver_id).label('user1'),
+        db.func.least(Message.sender_id, Message.receiver_id).label('user2'),
+        db.func.max(Message.created_at).label('last_message_time')
+    ).filter(
+        db.or_(Message.sender_id == user_id, Message.receiver_id == user_id)
+    ).group_by('user1', 'user2').subquery()
+    
+    conversations = db.session.query(Message).join(
+        subquery,
+        db.and_(
+            db.func.greatest(Message.sender_id, Message.receiver_id) == subquery.c.user1,
+            db.func.least(Message.sender_id, Message.receiver_id) == subquery.c.user2,
+            Message.created_at == subquery.c.last_message_time
+        )
+    ).order_by(Message.created_at.desc()).all()
+    
+    result = []
+    for msg in conversations:
+        other_user_id = msg.sender_id if msg.sender_id != user_id else msg.receiver_id
+        other_user = User.query.get(other_user_id)
+        if other_user:
+            result.append({
+                'user_id': other_user.id,
+                'username': f"{other_user.first_name} {other_user.last_name}",
+                'first_name': other_user.first_name,
+                'last_name': other_user.last_name,
+                'role': other_user.role,
+                'profile_image': other_user.profile_image,
+                'last_message': msg.content,
+                'last_message_time': msg.created_at.isoformat()
+            })
+    
+    return jsonify(result), 200
 
 
 @messages_bp.route('/sent', methods=['GET', 'OPTIONS'])
