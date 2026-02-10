@@ -133,3 +133,69 @@ def legacy_mark_as_read(message_id):
     message.mark_as_read()
     db.session.commit()
     return jsonify(message.to_dict()), 200
+
+
+@messages_bp.route('/conversation/<int:other_user_id>', methods=['GET', 'OPTIONS'])
+@cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
+@jwt_required()
+def get_conversation(other_user_id):
+    user_id = get_jwt_identity()
+    messages = Message.query.filter(
+        ((Message.sender_id == user_id) & (Message.receiver_id == other_user_id)) |
+        ((Message.sender_id == other_user_id) & (Message.receiver_id == user_id))
+    ).order_by(Message.created_at.asc()).all()
+    return jsonify([m.to_dict() for m in messages]), 200
+
+
+@messages_bp.route('/reply', methods=['POST', 'OPTIONS'])
+@cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
+@jwt_required()
+def reply_message():
+    user_id = get_jwt_identity()
+    data = request.get_json() or {}
+
+    receiver_id = data.get('receiver_id')
+    content = data.get('content')
+
+    if not receiver_id or not content:
+        return jsonify({'error': 'receiver_id and content required'}), 400
+
+    receiver = User.query.get(receiver_id)
+    if not receiver:
+        return jsonify({'error': 'Receiver not found'}), 404
+
+    message = Message(sender_id=user_id, receiver_id=receiver_id, content=content)
+    db.session.add(message)
+    db.session.commit()
+
+    return jsonify(message.to_dict()), 201
+
+
+@messages_bp.route('/search-users', methods=['GET', 'OPTIONS'])
+@cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
+@jwt_required()
+def search_users():
+    try:
+        query = request.args.get('q', '').strip()
+        user_id = get_jwt_identity()
+        
+        if not query:
+            users = User.query.filter(User.id != user_id).limit(20).all()
+        else:
+            users = User.query.filter(
+                db.or_(
+                    User.first_name.ilike(f'%{query}%'),
+                    User.last_name.ilike(f'%{query}%'),
+                    User.email.ilike(f'%{query}%')
+                )
+            ).filter(User.id != user_id).limit(10).all()
+        
+        return jsonify([{
+            'id': u.id,
+            'first_name': u.first_name,
+            'last_name': u.last_name,
+            'email': u.email,
+            'role': u.role
+        } for u in users]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
