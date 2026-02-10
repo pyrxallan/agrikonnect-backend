@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, render_template
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
@@ -8,8 +8,9 @@ from flask_limiter.util import get_remote_address
 
 from .config import Config
 from .extensions import db, mail
+# Register routes
 from .routes import register_routes
-
+from app.routes.messages import messages_bp
 # JWT token blocklist for logout functionality
 jwt_blocklist = set()
 
@@ -17,15 +18,15 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Initialize rate limiter with more generous limits for development
+    # Initialize rate limiter
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
-        default_limits=["1000 per day", "200 per hour"],
+        default_limits=["200 per day", "50 per hour"],
         storage_uri="memory://"
     )
 
-    # Apply to auth routes
+    
     @limiter.limit("5 per minute")
     def login():
         pass
@@ -44,29 +45,31 @@ def create_app(config_class=Config):
     # JWT blocklist callback
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
-        jti = jwt_payload['jti']
-        return jti in jwt_blocklist
+        return jwt_payload["jti"] in jwt_blocklist
 
-    # Initialize API
+    # Swagger API
     api = Api(
         app,
         title='Agrikonnect API',
         version='1.0',
         description='RESTful API for Agrikonnect agricultural platform. This API provides endpoints for user authentication, community management, expert consultations, and agricultural content sharing.',
-        doc='/api/docs',
-        contact='Agrikonnect Team',
-        contact_email='support@agrikonnect.com',
-        license='MIT',
-        license_url='https://opensource.org/licenses/MIT'
+        doc=False
     )
 
-    # Register routes
-    register_routes(api)
+    # Custom Swagger UI route
+    @app.route('/api/docs')
+    def swagger_ui():
+        return render_template('swagger.html')
 
-    # Serve uploaded files
-    @app.route('/uploads/<path:filename>')
-    def uploaded_file(filename):
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    # Serve static files
+    @app.route('/static/<path:filename>')
+    def static_files(filename):
+        return send_from_directory('app/static', filename)
+
+    # Register other routes
+    register_routes(api)
+    # Register legacy blueprint for clients calling /messages/*
+    app.register_blueprint(messages_bp)
 
     # Create database tables
     with app.app_context():

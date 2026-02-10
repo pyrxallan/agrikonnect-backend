@@ -1,11 +1,13 @@
-FROM python:3.9-slim
+FROM python:3.11-slim
 
-WORKDIR /app
+WORKDIR /service
 
+# Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+
+COPY app/ .
 
 EXPOSE 5000
 
