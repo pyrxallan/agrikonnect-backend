@@ -2,13 +2,6 @@ from datetime import datetime
 from ..extensions import db
 from .base import BaseModel
 
-# Association table for expert followers
-expert_followers = db.Table('expert_followers',
-    db.Column('follower_id', db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
-    db.Column('expert_id', db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
-    db.Column('followed_at', db.DateTime, default=db.func.current_timestamp())
-)
-
 class User(BaseModel):
     __tablename__ = 'users'
 
@@ -21,7 +14,6 @@ class User(BaseModel):
     bio = db.Column(db.Text)
     location = db.Column(db.String(100))
     profile_image = db.Column(db.String(255))
-    specialties = db.Column(db.Text)  # JSON string of specialties
     is_active = db.Column(db.Boolean, default=True, nullable=False,
                           server_default='true')
 
@@ -48,39 +40,10 @@ class User(BaseModel):
     messages_received = db.relationship('Message', foreign_keys='Message.receiver_id',
                                        backref='receiver', lazy=True,
                                        cascade='all, delete-orphan')
-    ratings_received = db.relationship('Rating', foreign_keys='Rating.expert_id',
-                                      backref='expert', lazy=True,
-                                      cascade='all, delete-orphan')
-    ratings_given = db.relationship('Rating', foreign_keys='Rating.user_id',
-                                   backref='rater', lazy=True,
-                                   cascade='all, delete-orphan')
 
-    def is_following_expert(self, expert_id):
-        result = db.session.execute(
-            db.text('SELECT 1 FROM expert_followers WHERE follower_id = :follower_id AND expert_id = :expert_id'),
-            {'follower_id': self.id, 'expert_id': expert_id}
-        ).first()
-        return result is not None
-    
-    def get_followers_count(self):
-        result = db.session.execute(
-            db.text('SELECT COUNT(*) as count FROM expert_followers WHERE expert_id = :expert_id'),
-            {'expert_id': self.id}
-        ).first()
-        return result[0] if result else 0
-    
-    def get_average_rating(self):
-        """Calculate average rating for expert"""
-        result = db.session.execute(
-            db.text('SELECT AVG(rating) as avg_rating FROM ratings WHERE expert_id = :expert_id'),
-            {'expert_id': self.id}
-        ).first()
-        avg = result[0] if result and result[0] else 0
-        return round(avg, 1) if avg else 0
-
-    def to_dict(self, include_stats=False):
+    def to_dict(self):
         base_dict = super().to_dict()
-        result = {
+        return {
             **base_dict,
             'email': self.email,
             'first_name': self.first_name,
@@ -91,10 +54,6 @@ class User(BaseModel):
             'profile_image': self.profile_image,
             'is_active': self.is_active,
         }
-        if include_stats and self.role == 'expert':
-            result['followers'] = self.followers.count()
-            result['posts'] = len(self.posts)
-        return result
 
     @property
     def full_name(self):

@@ -1,12 +1,13 @@
-FROM python:3.9-slim
+FROM python:3.12-slim
 
-WORKDIR /app
+WORKDIR /service
 
+# Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY app/ ./app/
 
-EXPOSE 5000
+EXPOSE 5001
 
-CMD ["python", "app.py"]
+CMD ["gunicorn", "-b", "0.0.0.0:5001", "app.app:app"]
