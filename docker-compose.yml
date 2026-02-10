@@ -38,8 +38,12 @@ services:
     build: ./microservices/notifications
     environment:
       FLASK_ENV: development
+      DATABASE_URL: postgresql://postgres:password@db:5432/agrikonnect
     ports:
       - "5001:5000"
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - ./microservices/notifications:/app
 
