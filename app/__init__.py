@@ -32,11 +32,12 @@ def create_app(config_class=Config):
         pass
 
     # Initialize extensions
-    # Explicitly allow the frontend origin for API routes and enable credentials/support for preflight
-    CORS(app, resources={
-        r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]},
-        r"/messages/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]}
-    }, supports_credentials=True)
+    # CORS configuration - allow frontend origins with credentials
+    CORS(app, 
+         origins=app.config['CORS_ORIGINS'],
+         supports_credentials=True,
+         allow_headers=["Content-Type", "Authorization"],
+         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
     jwt = JWTManager(app)
     db.init_app(app)
     mail.init_app(app)
