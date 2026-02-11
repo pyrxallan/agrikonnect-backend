@@ -8,6 +8,7 @@ def register_routes(api: Api):
     from .communities import community_ns
     from .experts import expert_ns
     from .messages import message_ns
+    from .notifications import notification_ns
 
     # Create general API namespace
     general_ns = Namespace('general', description='General API information')
@@ -27,7 +28,8 @@ def register_routes(api: Api):
                     'posts': '/api/v1/posts',
                     'communities': '/api/v1/communities',
                     'experts': '/api/v1/experts',
-                    'messages': '/api/v1/messages'
+                    'messages': '/api/v1/messages',
+                    'notifications': '/api/v1/notifications'
                 }
             }
 
@@ -39,3 +41,4 @@ def register_routes(api: Api):
     api.add_namespace(community_ns, path='/api/v1/communities')
     api.add_namespace(expert_ns, path='/api/v1/experts')
     api.add_namespace(message_ns, path='/api/v1/messages')
+    api.add_namespace(notification_ns, path='/api/v1/notifications')

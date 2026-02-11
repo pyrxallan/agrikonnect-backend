@@ -1,18 +1,11 @@
-<<<<<<< Updated upstream
-from flask import request
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restx import Namespace, Resource
-from app.models.message import Message
-from app.models.user import User
-=======
 from flask import request, Blueprint, jsonify
 from flask_restx import Namespace, Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 from flask_cors import cross_origin
 from app.models.user import User
 from app.models.message import Message
->>>>>>> Stashed changes
 from app.extensions import db
+from flask_restx import Namespace
 
 message_ns = Namespace('messages', description='User messages')
 

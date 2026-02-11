@@ -1,13 +1,7 @@
 from datetime import datetime
 from ..extensions import db
 from .base import BaseModel
-
-# Association table for expert followers
-expert_followers = db.Table('expert_followers',
-    db.Column('follower_id', db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
-    db.Column('expert_id', db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
-    db.Column('followed_at', db.DateTime, default=db.func.current_timestamp())
-)
+from .follower import followers
 
 class User(BaseModel):
     __tablename__ = 'users'
@@ -20,10 +14,19 @@ class User(BaseModel):
                      server_default='farmer')
     bio = db.Column(db.Text)
     location = db.Column(db.String(100))
+    phone = db.Column(db.String(20))
     profile_image = db.Column(db.String(255))
-    specialties = db.Column(db.Text)  # JSON string of specialties
+    cover_image = db.Column(db.String(255))
+    farm_size = db.Column(db.String(50))
+    crops = db.Column(db.String(255))
+    is_public = db.Column(db.Boolean, default=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False,
                           server_default='true')
+    
+    # Expert-specific fields
+    title = db.Column(db.String(100))  # e.g., "Agricultural Specialist"
+    specialties = db.Column(db.JSON)  # List of specialties
+    is_verified = db.Column(db.Boolean, default=False)
 
     # Password reset fields
     password_reset_token = db.Column(db.String(255), nullable=True)
@@ -48,39 +51,19 @@ class User(BaseModel):
     messages_received = db.relationship('Message', foreign_keys='Message.receiver_id',
                                        backref='receiver', lazy=True,
                                        cascade='all, delete-orphan')
-    ratings_received = db.relationship('Rating', foreign_keys='Rating.expert_id',
-                                      backref='expert', lazy=True,
-                                      cascade='all, delete-orphan')
-    ratings_given = db.relationship('Rating', foreign_keys='Rating.user_id',
-                                   backref='rater', lazy=True,
-                                   cascade='all, delete-orphan')
-
-    def is_following_expert(self, expert_id):
-        result = db.session.execute(
-            db.text('SELECT 1 FROM expert_followers WHERE follower_id = :follower_id AND expert_id = :expert_id'),
-            {'follower_id': self.id, 'expert_id': expert_id}
-        ).first()
-        return result is not None
     
-    def get_followers_count(self):
-        result = db.session.execute(
-            db.text('SELECT COUNT(*) as count FROM expert_followers WHERE expert_id = :expert_id'),
-            {'expert_id': self.id}
-        ).first()
-        return result[0] if result else 0
-    
-    def get_average_rating(self):
-        """Calculate average rating for expert"""
-        result = db.session.execute(
-            db.text('SELECT AVG(rating) as avg_rating FROM ratings WHERE expert_id = :expert_id'),
-            {'expert_id': self.id}
-        ).first()
-        avg = result[0] if result and result[0] else 0
-        return round(avg, 1) if avg else 0
+    # Follower relationships
+    following = db.relationship(
+        'User', secondary=followers,
+        primaryjoin='User.id == followers.c.follower_id',
+        secondaryjoin='User.id == followers.c.followed_id',
+        backref=db.backref('followers', lazy='dynamic'),
+        lazy='dynamic'
+    )
 
-    def to_dict(self, include_stats=False):
+    def to_dict(self, include_stats=False, current_user_id=None):
         base_dict = super().to_dict()
-        result = {
+        data = {
             **base_dict,
             'email': self.email,
             'first_name': self.first_name,
@@ -88,13 +71,77 @@ class User(BaseModel):
             'role': self.role,
             'bio': self.bio,
             'location': self.location,
+            'phone': self.phone,
             'profile_image': self.profile_image,
+            'cover_image': self.cover_image,
+            'farm_size': self.farm_size,
+            'crops': self.crops,
+            'is_public': self.is_public,
             'is_active': self.is_active,
+            'posts_count': len(self.posts) if hasattr(self, 'posts') else 0,
+            'communities_count': 0,
         }
-        if include_stats and self.role == 'expert':
-            result['followers'] = self.followers.count()
-            result['posts'] = len(self.posts)
-        return result
+        
+        if self.role == 'expert':
+            data.update({
+                'title': self.title,
+                'specialties': self.specialties or [],
+                'is_verified': self.is_verified
+            })
+        
+        if include_stats:
+            from sqlalchemy import select, func
+            data.update({
+                'followers_count': db.session.scalar(
+                    select(func.count()).select_from(followers).where(followers.c.followed_id == self.id)
+                ) or 0,
+                'following_count': db.session.scalar(
+                    select(func.count()).select_from(followers).where(followers.c.follower_id == self.id)
+                ) or 0,
+                'posts_count': len(self.posts)
+            })
+        
+        if current_user_id:
+            from sqlalchemy import select, func
+            data['is_following'] = db.session.scalar(
+                select(func.count()).select_from(followers).where(
+                    followers.c.followed_id == self.id,
+                    followers.c.follower_id == current_user_id
+                )
+            ) > 0
+        
+        return data
+    
+    def to_expert_dict(self, current_user_id=None):
+        """Convert expert user to frontend-compatible format"""
+        from sqlalchemy import select, func
+        
+        followers_count = db.session.scalar(
+            select(func.count()).select_from(followers).where(followers.c.followed_id == self.id)
+        ) or 0
+        
+        is_following = False
+        if current_user_id:
+            is_following = db.session.scalar(
+                select(func.count()).select_from(followers).where(
+                    followers.c.followed_id == self.id,
+                    followers.c.follower_id == current_user_id
+                )
+            ) > 0
+        
+        return {
+            'id': self.id,
+            'name': self.full_name,
+            'avatar_url': self.profile_image,
+            'title': self.title or 'Agricultural Expert',
+            'location': self.location,
+            'specialties': self.specialties or [],
+            'followers': followers_count,
+            'posts': len(self.posts),
+            'isVerified': self.is_verified,
+            'is_following': is_following,
+            'bio': self.bio
+        }
 
     @property
     def full_name(self):

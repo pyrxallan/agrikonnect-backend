@@ -1,40 +1,20 @@
-from flask import Flask, send_from_directory, render_template
+from flask import Flask, send_from_directory, render_template, render_template
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
 from flask_restx import Api
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 from .config import Config
 from .extensions import db, mail
-# Register routes
 from .routes import register_routes
 from app.routes.messages import messages_bp
-<<<<<<< Updated upstream
-# JWT token blocklist for logout functionality
-=======
 from app.routes.users import users_bp
 
->>>>>>> Stashed changes
 jwt_blocklist = set()
 
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
-
-    # Initialize rate limiter
-    limiter = Limiter(
-        app=app,
-        key_func=get_remote_address,
-        default_limits=["200 per day", "50 per hour"],
-        storage_uri="memory://"
-    )
-
-    
-    @limiter.limit("5 per minute")
-    def login():
-        pass
 
     # Initialize extensions
     # CORS configuration - allow frontend origins with credentials
@@ -48,12 +28,11 @@ def create_app(config_class=Config):
     mail.init_app(app)
     Migrate(app, db)
 
-    # JWT blocklist callback
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
-        return jwt_payload["jti"] in jwt_blocklist
+        return jwt_payload['jti'] in jwt_blocklist
 
-    # Swagger API
+    # Initialize API
     api = Api(
         app,
         title='Agrikonnect API',
@@ -72,17 +51,13 @@ def create_app(config_class=Config):
     def static_files(filename):
         return send_from_directory('app/static', filename)
 
-    # Register other routes
+    # Register routes
     register_routes(api)
-<<<<<<< Updated upstream
-    # Register legacy blueprint for clients calling /messages/*
-    app.register_blueprint(messages_bp)
-=======
     
     # Register legacy blueprints
     app.register_blueprint(messages_bp)
     app.register_blueprint(users_bp)
->>>>>>> Stashed changes
+
 
     # Create database tables
     with app.app_context():
