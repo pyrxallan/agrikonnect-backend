@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, render_template
+from flask import Flask, send_from_directory, render_template, render_template
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
@@ -7,8 +7,8 @@ from flask_restx import Api
 from .config import Config
 from .extensions import db, mail
 from .routes import register_routes
+from app.routes.messages import messages_bp
 
-# JWT token blocklist for logout functionality
 jwt_blocklist = set()
 
 def create_app(config_class=Config):
@@ -23,11 +23,9 @@ def create_app(config_class=Config):
     mail.init_app(app)
     Migrate(app, db)
 
-    # JWT blocklist callback
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
-        jti = jwt_payload['jti']
-        return jti in jwt_blocklist
+        return jwt_payload['jti'] in jwt_blocklist
 
     # Initialize API
     api = Api(

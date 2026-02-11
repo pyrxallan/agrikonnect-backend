@@ -278,7 +278,7 @@ class TokenRefresh(Resource):
         if not user or not user.is_active:
             return {'message': 'User not found or inactive'}, 401
 
-        new_access_token = create_access_token(identity=current_user_id)
+        new_access_token = create_access_token(identity=str(current_user_id))
 
         return {
             'message': 'Token refreshed',
