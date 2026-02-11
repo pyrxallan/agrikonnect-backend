@@ -1,6 +1,7 @@
 from datetime import datetime
 from ..extensions import db
 from .base import BaseModel
+from .follower import followers
 
 class User(BaseModel):
     __tablename__ = 'users'
@@ -13,9 +14,19 @@ class User(BaseModel):
                      server_default='farmer')
     bio = db.Column(db.Text)
     location = db.Column(db.String(100))
+    phone = db.Column(db.String(20))
     profile_image = db.Column(db.String(255))
+    cover_image = db.Column(db.String(255))
+    farm_size = db.Column(db.String(50))
+    crops = db.Column(db.String(255))
+    is_public = db.Column(db.Boolean, default=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False,
                           server_default='true')
+    
+    # Expert-specific fields
+    title = db.Column(db.String(100))  # e.g., "Agricultural Specialist"
+    specialties = db.Column(db.JSON)  # List of specialties
+    is_verified = db.Column(db.Boolean, default=False)
 
     # Password reset fields
     password_reset_token = db.Column(db.String(255), nullable=True)
@@ -40,10 +51,19 @@ class User(BaseModel):
     messages_received = db.relationship('Message', foreign_keys='Message.receiver_id',
                                        backref='receiver', lazy=True,
                                        cascade='all, delete-orphan')
+    
+    # Follower relationships
+    following = db.relationship(
+        'User', secondary=followers,
+        primaryjoin='User.id == followers.c.follower_id',
+        secondaryjoin='User.id == followers.c.followed_id',
+        backref=db.backref('followers', lazy='dynamic'),
+        lazy='dynamic'
+    )
 
-    def to_dict(self):
+    def to_dict(self, include_stats=False, current_user_id=None):
         base_dict = super().to_dict()
-        return {
+        data = {
             **base_dict,
             'email': self.email,
             'first_name': self.first_name,
@@ -53,6 +73,67 @@ class User(BaseModel):
             'location': self.location,
             'profile_image': self.profile_image,
             'is_active': self.is_active,
+        }
+        
+        if self.role == 'expert':
+            data.update({
+                'title': self.title,
+                'specialties': self.specialties or [],
+                'is_verified': self.is_verified
+            })
+        
+        if include_stats:
+            from sqlalchemy import select, func
+            data.update({
+                'followers_count': db.session.scalar(
+                    select(func.count()).select_from(followers).where(followers.c.followed_id == self.id)
+                ) or 0,
+                'following_count': db.session.scalar(
+                    select(func.count()).select_from(followers).where(followers.c.follower_id == self.id)
+                ) or 0,
+                'posts_count': len(self.posts)
+            })
+        
+        if current_user_id:
+            from sqlalchemy import select, func
+            data['is_following'] = db.session.scalar(
+                select(func.count()).select_from(followers).where(
+                    followers.c.followed_id == self.id,
+                    followers.c.follower_id == current_user_id
+                )
+            ) > 0
+        
+        return data
+    
+    def to_expert_dict(self, current_user_id=None):
+        """Convert expert user to frontend-compatible format"""
+        from sqlalchemy import select, func
+        
+        followers_count = db.session.scalar(
+            select(func.count()).select_from(followers).where(followers.c.followed_id == self.id)
+        ) or 0
+        
+        is_following = False
+        if current_user_id:
+            is_following = db.session.scalar(
+                select(func.count()).select_from(followers).where(
+                    followers.c.followed_id == self.id,
+                    followers.c.follower_id == current_user_id
+                )
+            ) > 0
+        
+        return {
+            'id': self.id,
+            'name': self.full_name,
+            'avatar_url': self.profile_image,
+            'title': self.title or 'Agricultural Expert',
+            'location': self.location,
+            'specialties': self.specialties or [],
+            'followers': followers_count,
+            'posts': len(self.posts),
+            'isVerified': self.is_verified,
+            'is_following': is_following,
+            'bio': self.bio
         }
 
     @property
