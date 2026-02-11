@@ -8,6 +8,7 @@ from .config import Config
 from .extensions import db, mail
 from .routes import register_routes
 
+from app.routes.messages import messages_bp
 # JWT token blocklist for logout functionality
 jwt_blocklist = set()
 
@@ -15,9 +16,27 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Initialize extensions
-    # Explicitly allow the frontend origin for API routes and enable credentials/support for preflight
+
     CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"]}}, supports_credentials=True)
+    # Initialize rate limiter
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://"
+    )
+
+    # Apply to auth routes
+    @limiter.limit("5 per minute")
+    def login():
+        pass
+
+    # Initialize extensions to allow localhost and production origins
+    CORS(app, 
+         origins=["http://localhost:5173", "http://localhost:5174", "*"], 
+         supports_credentials=True,
+         allow_headers=["Content-Type", "Authorization"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
     jwt = JWTManager(app)
     db.init_app(app)
     mail.init_app(app)
@@ -50,6 +69,8 @@ def create_app(config_class=Config):
 
     # Register routes
     register_routes(api)
+    # Register legacy blueprint for clients calling /messages/*
+    app.register_blueprint(messages_bp)
 
     # Create database tables
     with app.app_context():
