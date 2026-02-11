@@ -71,8 +71,15 @@ class User(BaseModel):
             'role': self.role,
             'bio': self.bio,
             'location': self.location,
+            'phone': self.phone,
             'profile_image': self.profile_image,
+            'cover_image': self.cover_image,
+            'farm_size': self.farm_size,
+            'crops': self.crops,
+            'is_public': self.is_public,
             'is_active': self.is_active,
+            'posts_count': len(self.posts) if hasattr(self, 'posts') else 0,
+            'communities_count': 0,
         }
         
         if self.role == 'expert':

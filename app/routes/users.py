@@ -1,5 +1,5 @@
-from flask import request
 from flask_restx import Namespace, Resource
+from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -58,8 +58,8 @@ class UserPhotoUpload(Resource):
         db.session.commit()
         return {'url': url}
 
-@user_ns.route('/search')
-class UserSearch(Resource):
+@user_ns.route('/<int:user_id>/upload-photo')
+class UserPhotoUpload(Resource):
     @jwt_required()
     def get(self):
         query = request.args.get('q', '').strip()
