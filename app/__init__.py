@@ -11,7 +11,12 @@ from .extensions import db, mail
 # Register routes
 from .routes import register_routes
 from app.routes.messages import messages_bp
+<<<<<<< Updated upstream
 # JWT token blocklist for logout functionality
+=======
+from app.routes.users import users_bp
+
+>>>>>>> Stashed changes
 jwt_blocklist = set()
 
 def create_app(config_class=Config):
@@ -69,8 +74,15 @@ def create_app(config_class=Config):
 
     # Register other routes
     register_routes(api)
+<<<<<<< Updated upstream
     # Register legacy blueprint for clients calling /messages/*
     app.register_blueprint(messages_bp)
+=======
+    
+    # Register legacy blueprints
+    app.register_blueprint(messages_bp)
+    app.register_blueprint(users_bp)
+>>>>>>> Stashed changes
 
     # Create database tables
     with app.app_context():
