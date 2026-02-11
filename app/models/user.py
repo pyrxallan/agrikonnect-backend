@@ -13,7 +13,12 @@ class User(BaseModel):
                      server_default='farmer')
     bio = db.Column(db.Text)
     location = db.Column(db.String(100))
+    phone = db.Column(db.String(20))
     profile_image = db.Column(db.String(255))
+    cover_image = db.Column(db.String(255))
+    farm_size = db.Column(db.String(50))
+    crops = db.Column(db.String(255))
+    is_public = db.Column(db.Boolean, default=True, nullable=False, server_default='true')
     is_active = db.Column(db.Boolean, default=True, nullable=False,
                           server_default='true')
 
@@ -51,8 +56,15 @@ class User(BaseModel):
             'role': self.role,
             'bio': self.bio,
             'location': self.location,
+            'phone': self.phone,
             'profile_image': self.profile_image,
+            'cover_image': self.cover_image,
+            'farm_size': self.farm_size,
+            'crops': self.crops,
+            'is_public': self.is_public,
             'is_active': self.is_active,
+            'posts_count': len(self.posts) if hasattr(self, 'posts') else 0,
+            'communities_count': 0,
         }
 
     @property
