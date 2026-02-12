@@ -54,10 +54,7 @@ def create_app(config_class=Config):
         return send_from_directory(os.path.join(app.root_path, '..', 'uploads'), filename)
 
     register_routes(api)
-    
-    # Register legacy blueprints
     app.register_blueprint(messages_bp)
-    app.register_blueprint(users_bp)
 
 
     with app.app_context():
