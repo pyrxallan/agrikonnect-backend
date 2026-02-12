@@ -156,3 +156,29 @@ class CommunityMembers(Resource):
         current_user_id = get_jwt_identity()
         members = list(community.members)
         return [member.to_dict(include_stats=True, current_user_id=current_user_id) for member in members]
+
+@community_ns.route('/<int:id>/messages')
+class CommunityMessages(Resource):
+    @jwt_required()
+    def get(self, id):
+        """Get community chat messages"""
+        from ..models import Comment
+        messages = Comment.query.filter_by(community_id=id).order_by(Comment.created_at.asc()).limit(100).all()
+        return {'messages': [{'id': m.id, 'content': m.content, 'author': {'name': m.author.full_name}, 'created_at': m.created_at.isoformat()} for m in messages]}
+    
+    @jwt_required()
+    def post(self, id):
+        """Send a message to community chat"""
+        from ..models import Comment
+        user_id = int(get_jwt_identity())
+        data = request.get_json()
+        
+        message = Comment(
+            content=data.get('content'),
+            author_id=user_id,
+            community_id=id
+        )
+        db.session.add(message)
+        db.session.commit()
+        
+        return {'id': message.id, 'content': message.content, 'author': {'name': message.author.full_name}, 'created_at': message.created_at.isoformat()}, 201

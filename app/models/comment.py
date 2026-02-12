@@ -5,8 +5,9 @@ class Comment(BaseModel):
     __tablename__ = 'comments'
 
     content = db.Column(db.Text, nullable=False)
-    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=False, index=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=True, index=True)
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    community_id = db.Column(db.Integer, db.ForeignKey('communities.id'), nullable=True, index=True)
 
     # Constraints
     __table_args__ = (
