@@ -170,6 +170,7 @@ class CommunityMessages(Resource):
     def post(self, id):
         """Send a message to community chat"""
         from ..models import Comment
+        from ..models.notification import Notification
         user_id = int(get_jwt_identity())
         data = request.get_json()
         
@@ -180,5 +181,22 @@ class CommunityMessages(Resource):
         )
         db.session.add(message)
         db.session.commit()
+        
+        # Notify community members
+        community = Community.query.get(id)
+        if community:
+            sender = User.query.get(user_id)
+            if sender:
+                for member in community.members:
+                    if member.id != user_id:
+                        notification = Notification(
+                            user_id=member.id,
+                            type='community_message',
+                            title=f'New message in {community.name}',
+                            message=f'{sender.first_name} {sender.last_name}: {data.get("content")[:50]}...',
+                            link=f'/communities/{id}'
+                        )
+                        db.session.add(notification)
+                db.session.commit()
         
         return {'id': message.id, 'content': message.content, 'author': {'name': message.author.full_name}, 'created_at': message.created_at.isoformat()}, 201
