@@ -32,6 +32,18 @@ class ExpertList(Resource):
         experts = User.query.filter_by(role='expert', is_active=True).all()
         return [expert.to_expert_dict(current_user_id) for expert in experts]
 
+@expert_ns.route('/specialties')
+class ExpertSpecialties(Resource):
+    @expert_ns.doc('list_specialties')
+    def get(self):
+        """Get all unique specialties from experts"""
+        experts = User.query.filter_by(role='expert', is_active=True).all()
+        specialties = set()
+        for expert in experts:
+            if expert.specialties:
+                specialties.update(expert.specialties)
+        return {'specialties': sorted(list(specialties))}
+
 @expert_ns.route('/<int:id>')
 class ExpertDetail(Resource):
     @expert_ns.doc('get_expert')
