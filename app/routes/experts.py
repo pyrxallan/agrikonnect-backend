@@ -29,9 +29,27 @@ class ExpertList(Resource):
     @jwt_required(optional=True)
     def get(self):
         """Get all experts"""
-        current_user_id = get_jwt_identity()
-        experts = User.query.filter_by(role='expert', is_active=True).all()
-        return [expert.to_expert_dict(current_user_id) for expert in experts]
+        try:
+            current_user_id = get_jwt_identity()
+            page = request.args.get('page', 1, type=int)
+            per_page = min(request.args.get('per_page', 20, type=int), 100)
+            
+            if page < 1:
+                return {'error': 'Page must be >= 1'}, 400
+            
+            # Paginate experts
+            paginated = User.query.filter_by(role='expert', is_active=True).order_by(
+                User.created_at.desc()
+            ).paginate(page=page, per_page=per_page, error_out=False)
+            
+            return {
+                'experts': [expert.to_expert_dict(current_user_id) for expert in paginated.items],
+                'total': paginated.total,
+                'pages': paginated.pages,
+                'current_page': page
+            }
+        except Exception as e:
+            return {'error': 'Failed to fetch experts'}, 500
 
 @expert_ns.route('/specialties')
 class ExpertSpecialties(Resource):

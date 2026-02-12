@@ -48,6 +48,9 @@ class PostList(Resource):
             if author_id:
                 query = query.filter_by(author_id=author_id)
             
+            # Use eager loading to prevent N+1 queries
+            query = query.options(db.joinedload(Post.author))
+            
             paginated = query.order_by(Post.created_at.desc()).paginate(
                 page=page, per_page=per_page, error_out=False
             )

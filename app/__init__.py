@@ -13,13 +13,20 @@ from .extensions import db, mail
 from .routes import register_routes
 from app.routes.messages import messages_bp
 from app.routes.users import users_bp
-from app.models import Notification  
+from app.models import Notification
+from app.utils.logging_config import setup_logging, log_request
 
 jwt_blocklist = set()
 
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    
+    # Setup logging first
+    logger = setup_logging(app)
+    log_request(app)
+    
+    logger.info('Initializing Flask extensions...')
 
     # Initialize rate limiter
     limiter = Limiter(
@@ -31,16 +38,22 @@ def create_app(config_class=Config):
     
     # Store limiter in app for route access
     app.limiter = limiter
+    
+    app.logger.info('Rate limiter initialized')
 
     CORS(app, 
          origins=app.config['CORS_ORIGINS'],
          supports_credentials=True,
          allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+    
+    app.logger.info(f'CORS configured for origins: {app.config["CORS_ORIGINS"]}')
     jwt = JWTManager(app)
     db.init_app(app)
     mail.init_app(app)
     Migrate(app, db)
+    
+    app.logger.info('Database and authentication initialized')
 
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
@@ -74,7 +87,7 @@ def create_app(config_class=Config):
     @app.errorhandler(500)
     def internal_error(error):
         db.session.rollback()
-        app.logger.error(f'Server Error: {error}')
+        app.logger.error(f'Server Error: {error}', exc_info=True)
         return {'error': 'Internal server error', 'message': 'An unexpected error occurred'}, 500
     
     @app.errorhandler(Exception)
@@ -82,7 +95,7 @@ def create_app(config_class=Config):
         if isinstance(error, HTTPException):
             return {'error': error.name, 'message': error.description}, error.code
         db.session.rollback()
-        app.logger.error(f'Unhandled Exception: {error}')
+        app.logger.error(f'Unhandled Exception: {error}', exc_info=True)
         return {'error': 'Internal server error', 'message': 'An unexpected error occurred'}, 500
 
     api = Api(app, title='Agrikonnect API', version='1.0', doc=False)
@@ -102,9 +115,13 @@ def create_app(config_class=Config):
     register_routes(api)
     app.register_blueprint(messages_bp)
     app.register_blueprint(users_bp)
+    
+    app.logger.info('Routes registered successfully')
 
 
     with app.app_context():
         db.create_all()
-
+        app.logger.info('Database tables created/verified')
+    
+    app.logger.info('Application initialization complete')
     return app

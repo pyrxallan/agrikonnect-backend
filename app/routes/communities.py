@@ -40,10 +40,27 @@ class CommunityList(Resource):
     @jwt_required(optional=True)
     def get(self):
         """Get all communities"""
-        current_user_id = get_jwt_identity()
-        communities = Community.query.all()
-        
-        return [community.to_dict(current_user_id, include_counts=True) for community in communities]
+        try:
+            current_user_id = get_jwt_identity()
+            page = request.args.get('page', 1, type=int)
+            per_page = min(request.args.get('per_page', 20, type=int), 100)
+            
+            if page < 1:
+                return {'error': 'Page must be >= 1'}, 400
+            
+            # Paginate communities
+            paginated = Community.query.order_by(Community.created_at.desc()).paginate(
+                page=page, per_page=per_page, error_out=False
+            )
+            
+            return {
+                'communities': [community.to_dict(current_user_id, include_counts=True) for community in paginated.items],
+                'total': paginated.total,
+                'pages': paginated.pages,
+                'current_page': page
+            }
+        except Exception as e:
+            return {'error': 'Failed to fetch communities'}, 500
     
     @community_ns.doc('create_community')
     @community_ns.expect(community_input)
