@@ -101,6 +101,20 @@ def legacy_send_message():
         message = Message(sender_id=user_id, receiver_id=receiver_id, content=content)
         db.session.add(message)
         db.session.commit()
+        
+        # Create notification
+        from app.models.notification import Notification
+        sender = User.query.get(user_id)
+        if sender:
+            notification = Notification(
+                user_id=receiver_id,
+                type='message',
+                title='New Message',
+                message=f'{sender.first_name} {sender.last_name} sent you a message',
+                link=f'/messages/{user_id}'
+            )
+            db.session.add(notification)
+            db.session.commit()
 
         return jsonify(message.to_dict()), 201
     except Exception as e:
