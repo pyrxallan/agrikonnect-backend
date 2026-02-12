@@ -115,7 +115,7 @@ def legacy_inbox():
     
     try:
         verify_jwt_in_request()
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())
         
         messages = Message.query.filter(
             db.or_(Message.sender_id == user_id, Message.receiver_id == user_id)
@@ -129,6 +129,9 @@ def legacy_inbox():
         
         result = []
         for other_user_id, msg in conversations.items():
+            if other_user_id == user_id:
+                continue
+                
             other_user = User.query.get(other_user_id)
             if other_user:
                 result.append({
