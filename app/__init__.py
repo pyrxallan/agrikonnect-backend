@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, render_template
+from flask import Flask, send_from_directory, render_template, render_template
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
@@ -26,11 +26,10 @@ def create_app(config_class=Config):
     )
 
     CORS(app, 
-         origins=["http://localhost:5173", "http://localhost:5174", "*"], 
+         origins=app.config['CORS_ORIGINS'],
          supports_credentials=True,
          allow_headers=["Content-Type", "Authorization"],
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-    
+         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
     jwt = JWTManager(app)
     db.init_app(app)
     mail.init_app(app)
@@ -55,7 +54,11 @@ def create_app(config_class=Config):
         return send_from_directory(os.path.join(app.root_path, '..', 'uploads'), filename)
 
     register_routes(api)
+    
+    # Register legacy blueprints
     app.register_blueprint(messages_bp)
+    app.register_blueprint(users_bp)
+
 
     with app.app_context():
         db.create_all()
