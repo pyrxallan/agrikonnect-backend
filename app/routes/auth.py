@@ -101,13 +101,20 @@ class Register(Resource):
                 return {'message': 'Password must be at least 8 characters'}, 400
 
             # Create new user
-            hashed_password = generate_password_hash(password)
+            hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+            
+            # Handle specialties - convert string to array if needed
+            specialties = data.get('specialties')
+            if specialties and isinstance(specialties, str):
+                specialties = [specialties]
+            
             user = User(
                 email=email,
                 password=hashed_password,
                 first_name=first_name,
                 last_name=last_name,
-                role=role
+                role=role,
+                specialties=specialties if role == 'expert' else None
             )
 
             db.session.add(user)
@@ -254,7 +261,7 @@ class ResetPassword(Resource):
             return {'message': 'Reset token has expired. Please request a new one'}, 400
 
         # Update password
-        user.password = generate_password_hash(new_password)
+        user.password = generate_password_hash(new_password, method='pbkdf2:sha256')
         user.password_reset_token = None
         user.password_reset_expires = None
         db.session.commit()
