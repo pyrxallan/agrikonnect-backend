@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask import request
 from ..models.user import User
 from ..extensions import db
+from ..utils.validation import validate_integer_range
 
 expert_ns = Namespace('experts', description='Expert operations')
 
@@ -63,23 +64,33 @@ class ExpertFollow(Resource):
     @jwt_required()
     def post(self, id):
         """Follow an expert"""
-        current_user_id = get_jwt_identity()
-        current_user = User.query.get(current_user_id)
-        expert = User.query.filter_by(id=id, role='expert').first()
-        
-        if not expert:
-            expert_ns.abort(404, 'Expert not found')
-        
-        if current_user_id == id:
-            expert_ns.abort(400, 'Cannot follow yourself')
-        
-        if expert in current_user.following.all():
-            expert_ns.abort(400, 'Already following this expert')
-        
-        current_user.following.append(expert)
-        db.session.commit()
-        
-        return {'message': 'Successfully followed expert', 'is_following': True}, 200
+        try:
+            # Validate ID
+            is_valid, error = validate_integer_range(id, 1, None, 'Expert ID')
+            if not is_valid:
+                return {'error': error}, 400
+            
+            current_user_id = int(get_jwt_identity())
+            
+            if current_user_id == id:
+                return {'error': 'Cannot follow yourself'}, 400
+            
+            current_user = User.query.get(current_user_id)
+            expert = User.query.filter_by(id=id, role='expert').first()
+            
+            if not expert:
+                return {'error': 'Expert not found'}, 404
+            
+            if expert in current_user.following.all():
+                return {'error': 'Already following this expert'}, 400
+            
+            current_user.following.append(expert)
+            db.session.commit()
+            
+            return {'message': 'Successfully followed expert', 'is_following': True}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {'error': 'Failed to follow expert'}, 500
     
     @expert_ns.doc('unfollow_expert')
     @jwt_required()
