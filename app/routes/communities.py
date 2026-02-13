@@ -86,9 +86,9 @@ class CommunityList(Resource):
                 return {'error': 'Community with this name already exists'}, 400
             
             # Validate description
-            description = sanitize_string(data.get('description'), 500)
+            description = sanitize_string(data.get('description', ''), 500)
             if description:
-                is_valid, error = validate_string_length(description, 10, 500, 'Description')
+                is_valid, error = validate_string_length(description, 1, 500, 'Description')
                 if not is_valid:
                     return {'error': error}, 400
             
