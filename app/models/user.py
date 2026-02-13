@@ -14,9 +14,9 @@ class User(BaseModel):
                      server_default='farmer')
     bio = db.Column(db.Text)
     location = db.Column(db.String(100))
-    phone = db.Column(db.String(20))
+    # phone = db.Column(db.String(20))  # Commented - not in production DB
     profile_image = db.Column(db.String(255))
-    cover_image = db.Column(db.String(255))
+    # cover_image = db.Column(db.String(255))  # Commented - not in production DB
     farm_size = db.Column(db.String(50))
     crops = db.Column(db.String(255))
     is_public = db.Column(db.Boolean, default=True)
@@ -81,9 +81,9 @@ class User(BaseModel):
             'role': self.role,
             'bio': self.bio,
             'location': self.location,
-            'phone': self.phone,
+            # 'phone': getattr(self, 'phone', None),
             'profile_image': get_full_url(self.profile_image),
-            'cover_image': get_full_url(self.cover_image),
+            # 'cover_image': get_full_url(getattr(self, 'cover_image', None)),
             'farm_size': self.farm_size,
             'crops': self.crops,
             'is_public': self.is_public,
