@@ -42,7 +42,7 @@ def create_app(config_class=Config):
     app.logger.info('Rate limiter initialized')
 
     CORS(app, 
-         origins=["http://localhost:5173", "http://localhost:5174", "*"], 
+         origins=app.config['CORS_ORIGINS'], 
          supports_credentials=True,
          allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
