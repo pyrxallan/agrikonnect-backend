@@ -18,8 +18,8 @@ class Message(BaseModel):
     )
 
     # Relationships
-    sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
-    receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_messages')
+    sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages_list')
+    receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_messages_list')
 
     def to_dict(self):
         base_dict = super().to_dict()
