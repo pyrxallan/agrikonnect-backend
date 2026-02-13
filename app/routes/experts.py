@@ -58,7 +58,7 @@ class ExpertSpecialties(Resource):
         experts = User.query.filter_by(role='expert', is_active=True).all()
         specialties = set()
         for expert in experts:
-            if expert.specialties:
+            if hasattr(expert, 'specialties') and expert.specialties:
                 specialties.update(expert.specialties)
         return {'specialties': sorted(list(specialties))}
 
