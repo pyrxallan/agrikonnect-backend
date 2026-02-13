@@ -15,17 +15,8 @@ class User(BaseModel):
     bio = db.Column(db.Text)
     location = db.Column(db.String(100))
     profile_image = db.Column(db.String(255))
-    cover_image = db.Column(db.String(255))
-    farm_size = db.Column(db.String(50))
-    crops = db.Column(db.String(255))
-    is_public = db.Column(db.Boolean, default=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False,
                           server_default='true')
-    
-    # Expert-specific fields
-    title = db.Column(db.String(100))
-    specialties = db.Column(db.JSON)
-    is_verified = db.Column(db.Boolean, default=False)
 
     # Password reset fields
     password_reset_token = db.Column(db.String(255), nullable=True)
@@ -81,10 +72,6 @@ class User(BaseModel):
             'bio': self.bio,
             'location': self.location,
             'profile_image': get_full_url(self.profile_image),
-            'cover_image': get_full_url(self.cover_image),
-            'farm_size': self.farm_size,
-            'crops': self.crops,
-            'is_public': self.is_public,
             'is_active': self.is_active,
             'posts_count': len(self.posts) if hasattr(self, 'posts') else 0,
             'communities_count': 0,
@@ -92,9 +79,9 @@ class User(BaseModel):
         
         if self.role == 'expert':
             data.update({
-                'title': getattr(self, 'title', None),
-                'specialties': getattr(self, 'specialties', []),
-                'is_verified': getattr(self, 'is_verified', False)
+                'title': None,
+                'specialties': [],
+                'is_verified': False
             })
         
         if include_stats:
@@ -141,12 +128,12 @@ class User(BaseModel):
             'id': self.id,
             'name': self.full_name,
             'avatar_url': self.profile_image,
-            'title': self.title or 'Agricultural Expert',
+            'title': 'Agricultural Expert',
             'location': self.location,
-            'specialties': self.specialties or [],
+            'specialties': [],
             'followers': followers_count,
             'posts': len(self.posts),
-            'isVerified': self.is_verified,
+            'isVerified': False,
             'is_following': is_following,
             'bio': self.bio
         }
