@@ -176,9 +176,13 @@ class UserPhotoUpload(Resource):
 
 # Blueprint routes for direct /users access
 @users_bp.route('', methods=['GET'], strict_slashes=False)
-@jwt_required()
+@jwt_required(optional=True)
 def get_users():
-    user_id = int(get_jwt_identity())
+    current_user_id = get_jwt_identity()
+    if not current_user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    user_id = int(current_user_id)
     query = request.args.get('q', '').strip()
     user_type = request.args.get('type', '').strip()
     
