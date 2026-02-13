@@ -19,7 +19,7 @@ class User(BaseModel):
     # cover_image = db.Column(db.String(255))  # Commented - not in production DB
     # farm_size = db.Column(db.String(50))  # Commented - not in production DB
     # crops = db.Column(db.String(255))  # Commented - not in production DB
-    is_public = db.Column(db.Boolean, default=True)
+    # is_public = db.Column(db.Boolean, default=True)  # Commented - not in production DB
     is_active = db.Column(db.Boolean, default=True, nullable=False,
                           server_default='true')
     
@@ -86,7 +86,7 @@ class User(BaseModel):
             # 'cover_image': get_full_url(getattr(self, 'cover_image', None)),
             # 'farm_size': getattr(self, 'farm_size', None),
             # 'crops': getattr(self, 'crops', None),
-            'is_public': self.is_public,
+            # 'is_public': getattr(self, 'is_public', True),
             'is_active': self.is_active,
             'posts_count': len(self.posts) if hasattr(self, 'posts') else 0,
             'communities_count': 0,
