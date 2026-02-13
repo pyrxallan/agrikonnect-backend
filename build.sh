@@ -5,7 +5,7 @@ set -o errexit
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Clear alembic version table and stamp to head
+# Drop alembic version table to force fresh migration
 python << EOF
 import os
 from sqlalchemy import create_engine, text
@@ -14,11 +14,10 @@ db_url = os.environ.get('DATABASE_URL')
 if db_url:
     engine = create_engine(db_url)
     with engine.connect() as conn:
-        conn.execute(text("DELETE FROM alembic_version"))
+        conn.execute(text("DROP TABLE IF EXISTS alembic_version CASCADE"))
         conn.commit()
-    print("Cleared migration history")
+    print("Reset migration history")
 EOF
 
-# Stamp to head (mark all migrations as applied) then upgrade
-flask db stamp head
+# Run all migrations fresh
 flask db upgrade
