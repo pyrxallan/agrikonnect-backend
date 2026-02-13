@@ -175,7 +175,7 @@ class UserPhotoUpload(Resource):
             return {'error': 'Failed to upload photo'}, 500
 
 # Blueprint routes for direct /users access
-@users_bp.route('', methods=['GET'], strict_slashes=False)
+@users_bp.route('/users', methods=['GET'], strict_slashes=False)
 @jwt_required(optional=True)
 def get_users():
     current_user_id = get_jwt_identity()
@@ -194,7 +194,7 @@ def get_users():
     
     return jsonify([{'id': u.id, 'first_name': u.first_name, 'last_name': u.last_name, 'email': u.email, 'role': u.role} for u in users.limit(20).all()])
 
-@users_bp.route('/search', methods=['GET'])
+@users_bp.route('/users/search', methods=['GET'])
 @jwt_required()
 def search_users():
     user_id = int(get_jwt_identity())
