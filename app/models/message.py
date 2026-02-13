@@ -17,12 +17,11 @@ class Message(BaseModel):
         db.Index('idx_message_created_at', 'created_at'),
     )
 
-    # Relationships
-    sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages_list')
-    receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_messages_list')
-
     def to_dict(self):
+        from .user import User
         base_dict = super().to_dict()
+        sender = User.query.get(self.sender_id) if self.sender_id else None
+        receiver = User.query.get(self.receiver_id) if self.receiver_id else None
         return {
             **base_dict,
             'content': self.content,
@@ -30,17 +29,17 @@ class Message(BaseModel):
             'receiver_id': self.receiver_id,
             'is_read': self.is_read,
             'sender': {
-                'id': self.sender.id,
-                'first_name': self.sender.first_name,
-                'last_name': self.sender.last_name,
-                'email': self.sender.email,
-            } if hasattr(self, 'sender') and self.sender else None,
+                'id': sender.id,
+                'first_name': sender.first_name,
+                'last_name': sender.last_name,
+                'email': sender.email,
+            } if sender else None,
             'receiver': {
-                'id': self.receiver.id,
-                'first_name': self.receiver.first_name,
-                'last_name': self.receiver.last_name,
-                'email': self.receiver.email,
-            } if hasattr(self, 'receiver') and self.receiver else None,
+                'id': receiver.id,
+                'first_name': receiver.first_name,
+                'last_name': receiver.last_name,
+                'email': receiver.email,
+            } if receiver else None,
         }
 
     def mark_as_read(self):
