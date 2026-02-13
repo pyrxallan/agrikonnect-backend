@@ -71,10 +71,10 @@ class MarkAsRead(Resource):
 
 
 # Legacy Blueprint to support clients expecting /messages/* (non-API path)
-messages_bp = Blueprint('messages', __name__, url_prefix='/messages')
+messages_bp = Blueprint('messages', __name__)
 
 
-@messages_bp.route('/', methods=['POST', 'OPTIONS'], strict_slashes=False)
+@messages_bp.route('/messages', methods=['POST', 'OPTIONS'], strict_slashes=False)
 @cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 def legacy_send_message():
     if request.method == 'OPTIONS':
@@ -121,7 +121,7 @@ def legacy_send_message():
         return jsonify({'error': str(e)}), 401
 
 
-@messages_bp.route('/inbox', methods=['GET', 'OPTIONS'], strict_slashes=False)
+@messages_bp.route('/messages/inbox', methods=['GET', 'OPTIONS'], strict_slashes=False)
 @cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 def legacy_inbox():
     if request.method == 'OPTIONS':
@@ -164,7 +164,7 @@ def legacy_inbox():
         return jsonify({'error': str(e)}), 401
 
 
-@messages_bp.route('/sent', methods=['GET', 'OPTIONS'], strict_slashes=False)
+@messages_bp.route('/messages/sent', methods=['GET', 'OPTIONS'], strict_slashes=False)
 @cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 @jwt_required()
 def legacy_sent_messages():
@@ -173,7 +173,7 @@ def legacy_sent_messages():
     return jsonify([m.to_dict() for m in messages]), 200
 
 
-@messages_bp.route('/<int:message_id>/read', methods=['PATCH', 'OPTIONS'], strict_slashes=False)
+@messages_bp.route('/messages/<int:message_id>/read', methods=['PATCH', 'OPTIONS'], strict_slashes=False)
 @cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 @jwt_required()
 def legacy_mark_as_read(message_id):
@@ -188,7 +188,7 @@ def legacy_mark_as_read(message_id):
     return jsonify(message.to_dict()), 200
 
 
-@messages_bp.route('/<int:other_user_id>', methods=['GET', 'OPTIONS'], strict_slashes=False)
+@messages_bp.route('/messages/<int:other_user_id>', methods=['GET', 'OPTIONS'], strict_slashes=False)
 @cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 def get_conversation_short(other_user_id):
     if request.method == 'OPTIONS':
@@ -220,7 +220,7 @@ def get_conversation_short(other_user_id):
         return jsonify({'error': str(e)}), 401
 
 
-@messages_bp.route('/conversation/<int:other_user_id>', methods=['GET', 'OPTIONS'], strict_slashes=False)
+@messages_bp.route('/messages/conversation/<int:other_user_id>', methods=['GET', 'OPTIONS'], strict_slashes=False)
 @cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 @jwt_required()
 def get_conversation(other_user_id):
@@ -232,7 +232,7 @@ def get_conversation(other_user_id):
     return jsonify([m.to_dict() for m in messages]), 200
 
 
-@messages_bp.route('/reply', methods=['POST', 'OPTIONS'], strict_slashes=False)
+@messages_bp.route('/messages/reply', methods=['POST', 'OPTIONS'], strict_slashes=False)
 @cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 @jwt_required()
 def reply_message():
@@ -256,7 +256,7 @@ def reply_message():
     return jsonify(message.to_dict()), 201
 
 
-@messages_bp.route('/typing', methods=['POST', 'OPTIONS'], strict_slashes=False)
+@messages_bp.route('/messages/typing', methods=['POST', 'OPTIONS'], strict_slashes=False)
 @cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 def legacy_typing():
     if request.method == 'OPTIONS':
@@ -272,7 +272,7 @@ def legacy_typing():
         return jsonify({'error': str(e)}), 401
 
 
-@messages_bp.route('/mark-read', methods=['POST', 'OPTIONS'], strict_slashes=False)
+@messages_bp.route('/messages/mark-read', methods=['POST', 'OPTIONS'], strict_slashes=False)
 @cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 @jwt_required()
 def legacy_mark_conversation_read():
@@ -291,7 +291,7 @@ def legacy_mark_conversation_read():
     return jsonify({'status': 'ok'}), 200
 
 
-@messages_bp.route('/search-users', methods=['GET', 'OPTIONS'], strict_slashes=False)
+@messages_bp.route('/messages/search-users', methods=['GET', 'OPTIONS'], strict_slashes=False)
 @cross_origin(origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5000"], supports_credentials=True)
 @jwt_required()
 def search_users():
