@@ -108,14 +108,20 @@ class Register(Resource):
             if specialties and isinstance(specialties, str):
                 specialties = [specialties]
             
-            user = User(
-                email=email,
-                password=hashed_password,
-                first_name=first_name,
-                last_name=last_name,
-                role=role,
-                specialties=specialties if role == 'expert' else None
-            )
+            # Build user kwargs, only include specialties if column exists
+            user_kwargs = {
+                'email': email,
+                'password': hashed_password,
+                'first_name': first_name,
+                'last_name': last_name,
+                'role': role
+            }
+            
+            # Only add specialties if the column exists in the model
+            if role == 'expert' and specialties and hasattr(User, 'specialties'):
+                user_kwargs['specialties'] = specialties
+            
+            user = User(**user_kwargs)
 
             db.session.add(user)
             db.session.commit()
