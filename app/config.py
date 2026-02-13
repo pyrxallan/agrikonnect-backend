@@ -26,7 +26,9 @@ class Config:
 
     # Upload Configuration
     UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
-    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 16777216))
+    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))  # 16MB default
+    # Accepted file upload types
+    ALLOWED_UPLOAD_EXTENSIONS = set(os.getenv('ALLOWED_UPLOAD_EXTENSIONS', 'png,jpg,jpeg,gif,webp').split(','))
 
     # Notification Service
     NOTIFICATION_SERVICE_URL = os.getenv('NOTIFICATION_SERVICE_URL', 'http://localhost:5001')

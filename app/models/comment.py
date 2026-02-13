@@ -4,26 +4,37 @@ from .base import BaseModel
 class Comment(BaseModel):
     __tablename__ = 'comments'
 
-    # Constraints so that content cannot be empty and author_id and post_id must be valid foreign keys
     content = db.Column(db.Text, nullable=False)
+    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=True, index=True)
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
-    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=False, index=True)
+    community_id = db.Column(db.Integer, db.ForeignKey('communities.id'), nullable=True, index=True)
 
+    # ADD THESE RELATIONSHIPS
+    author = db.relationship('User', foreign_keys=[author_id])
+    post = db.relationship('Post', foreign_keys=[post_id])
+    community = db.relationship('Community', foreign_keys=[community_id], backref='community_messages')
+
+    # Constraints
     __table_args__ = (
-        db.CheckConstraint("length(content) >= 1", name='content_not_empty'),
+        db.CheckConstraint("length(content) >= 1", name='comment_content_not_empty'),
+        db.Index('idx_comment_post_author', 'post_id', 'author_id'),
     )
 
-    # Relationships are defined in User and Post models with cascade delete, so no need to define them here
     def to_dict(self):
         base_dict = super().to_dict()
         return {
             **base_dict,
             'content': self.content,
-            'author_id': self.author_id,
             'post_id': self.post_id,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
+            'author_id': self.author_id,
+            'author': {
+                'id': self.author.id,
+                'first_name': self.author.first_name,
+                'last_name': self.author.last_name,
+                'name': f"{self.author.first_name} {self.author.last_name}".strip(),
+                'profile_image': self.author.profile_image,
+            } if self.author else None,
         }
-    
+
     def __repr__(self):
-        return f'<Comment id={self.id} author_id={self.author_id} post_id={self.post_id}>'
+        return f'<Comment {self.content[:30]}...>'

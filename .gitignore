@@ -142,3 +142,6 @@ dmypy.json
 # OS
 .DS_Store
 Thumbs.db
+
+migrations/versions/__pycache__/  # Add to .gitignore
+*.pyc

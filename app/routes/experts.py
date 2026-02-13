@@ -1,133 +1,129 @@
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask import request
 from ..models.user import User
-from ..models.rating import Rating
 from ..extensions import db
+from ..utils.validation import validate_integer_range
 
 expert_ns = Namespace('experts', description='Expert operations')
 
+# Response models
 expert_model = expert_ns.model('Expert', {
-    'id': fields.Integer(description='Expert ID'),
-    'name': fields.String(description='Expert name'),
-    'title': fields.String(description='Expert title/role'),
-    'location': fields.String(description='Expert location'),
-    'bio': fields.String(description='Expert bio'),
-    'followers': fields.Integer(description='Number of followers'),
-    'posts': fields.Integer(description='Number of posts')
+    'id': fields.Integer,
+    'name': fields.String,
+    'avatar_url': fields.String,
+    'title': fields.String,
+    'location': fields.String,
+    'specialties': fields.List(fields.String),
+    'followers': fields.Integer,
+    'posts': fields.Integer,
+    'isVerified': fields.Boolean,
+    'is_following': fields.Boolean,
+    'bio': fields.String
 })
 
 @expert_ns.route('')
 class ExpertList(Resource):
-    @jwt_required()
+    @expert_ns.doc('list_experts')
+    @jwt_required(optional=True)
     def get(self):
         """Get all experts"""
-        import json
-        current_user_id = get_jwt_identity()
-        current_user = User.query.get(current_user_id)
-        experts = User.query.filter_by(role='expert').all()
-        
-        return [{
-            'id': e.id,
-            'name': e.full_name,
-            'title': e.bio or 'Agricultural Expert',
-            'location': e.location,
-            'bio': e.bio,
-            'specialties': json.loads(e.specialties) if e.specialties else [],
-            'followers': e.get_followers_count(),
-            'posts': len(e.posts),
-            'rating': e.get_average_rating(),
-            'is_following': current_user.is_following_expert(e.id),
-            'avatar_url': e.profile_image
-        } for e in experts], 200
+        try:
+            current_user_id = get_jwt_identity()
+            page = request.args.get('page', 1, type=int)
+            per_page = min(request.args.get('per_page', 20, type=int), 100)
+            
+            if page < 1:
+                return {'error': 'Page must be >= 1'}, 400
+            
+            # Paginate experts
+            paginated = User.query.filter_by(role='expert', is_active=True).order_by(
+                User.created_at.desc()
+            ).paginate(page=page, per_page=per_page, error_out=False)
+            
+            return {
+                'experts': [expert.to_expert_dict(current_user_id) for expert in paginated.items],
+                'total': paginated.total,
+                'pages': paginated.pages,
+                'current_page': page
+            }
+        except Exception as e:
+            return {'error': 'Failed to fetch experts'}, 500
+
+@expert_ns.route('/specialties')
+class ExpertSpecialties(Resource):
+    @expert_ns.doc('list_specialties')
+    def get(self):
+        """Get all unique specialties from experts"""
+        experts = User.query.filter_by(role='expert', is_active=True).all()
+        specialties = set()
+        for expert in experts:
+            if expert.specialties:
+                specialties.update(expert.specialties)
+        return {'specialties': sorted(list(specialties))}
 
 @expert_ns.route('/<int:id>')
 class ExpertDetail(Resource):
-    @jwt_required()
+    @expert_ns.doc('get_expert')
+    @expert_ns.marshal_with(expert_model)
+    @jwt_required(optional=True)
     def get(self, id):
-        """Get expert details"""
-        import json
+        """Get expert by ID"""
         current_user_id = get_jwt_identity()
-        current_user = User.query.get(current_user_id)
-        expert = User.query.filter_by(id=id, role='expert').first_or_404()
-        
-        return {
-            'id': expert.id,
-            'name': expert.full_name,
-            'title': expert.bio or 'Agricultural Expert',
-            'location': expert.location,
-            'bio': expert.bio,
-            'specialties': json.loads(expert.specialties) if expert.specialties else [],
-            'followers': expert.get_followers_count(),
-            'posts': len(expert.posts),
-            'rating': expert.get_average_rating(),
-            'is_following': current_user.is_following_expert(expert.id),
-            'avatar_url': expert.profile_image,
-            'email': expert.email
-        }, 200
+        expert = User.query.filter_by(id=id, role='expert').first()
+        if not expert:
+            expert_ns.abort(404, 'Expert not found')
+        return expert.to_expert_dict(current_user_id)
 
 @expert_ns.route('/<int:id>/follow')
 class ExpertFollow(Resource):
+    @expert_ns.doc('follow_expert')
     @jwt_required()
     def post(self, id):
         """Follow an expert"""
-        user_id = get_jwt_identity()
-        expert = User.query.filter_by(id=id, role='expert').first_or_404()
-        user = User.query.get(user_id)
-        
-        if user.is_following_expert(id):
-            return {'message': 'Already following'}, 400
-        
-        db.session.execute(
-            db.text('INSERT INTO expert_followers (follower_id, expert_id) VALUES (:follower_id, :expert_id)'),
-            {'follower_id': user_id, 'expert_id': id}
-        )
-        db.session.commit()
-        return {'message': 'Followed successfully'}, 200
-
-@expert_ns.route('/<int:id>/unfollow')
-class ExpertUnfollow(Resource):
+        try:
+            # Validate ID
+            is_valid, error = validate_integer_range(id, 1, None, 'Expert ID')
+            if not is_valid:
+                return {'error': error}, 400
+            
+            current_user_id = int(get_jwt_identity())
+            
+            if current_user_id == id:
+                return {'error': 'Cannot follow yourself'}, 400
+            
+            current_user = User.query.get(current_user_id)
+            expert = User.query.filter_by(id=id, role='expert').first()
+            
+            if not expert:
+                return {'error': 'Expert not found'}, 404
+            
+            if expert in current_user.following.all():
+                return {'error': 'Already following this expert'}, 400
+            
+            current_user.following.append(expert)
+            db.session.commit()
+            
+            return {'message': 'Successfully followed expert', 'is_following': True}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {'error': 'Failed to follow expert'}, 500
+    
+    @expert_ns.doc('unfollow_expert')
     @jwt_required()
-    def post(self, id):
+    def delete(self, id):
         """Unfollow an expert"""
-        user_id = get_jwt_identity()
-        expert = User.query.filter_by(id=id, role='expert').first_or_404()
-        user = User.query.get(user_id)
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+        expert = User.query.filter_by(id=id, role='expert').first()
         
-        if not user.is_following_expert(id):
-            return {'message': 'Not following'}, 400
+        if not expert:
+            expert_ns.abort(404, 'Expert not found')
         
-        db.session.execute(
-            db.text('DELETE FROM expert_followers WHERE follower_id = :follower_id AND expert_id = :expert_id'),
-            {'follower_id': user_id, 'expert_id': id}
-        )
+        if expert not in current_user.following.all():
+            expert_ns.abort(400, 'Not following this expert')
+        
+        current_user.following.remove(expert)
         db.session.commit()
-        return {'message': 'Unfollowed successfully'}, 200
-
-@expert_ns.route('/<int:id>/rate')
-class ExpertRate(Resource):
-    @jwt_required()
-    def post(self, id):
-        """Rate an expert"""
-        from flask import request
-        user_id = get_jwt_identity()
-        expert = User.query.filter_by(id=id, role='expert').first_or_404()
         
-        data = request.get_json()
-        rating_value = data.get('rating')
-        review = data.get('review', '')
-        
-        if not rating_value or rating_value < 1 or rating_value > 5:
-            return {'message': 'Rating must be between 1 and 5'}, 400
-        
-        # Check if user already rated this expert
-        existing_rating = Rating.query.filter_by(expert_id=id, user_id=user_id).first()
-        
-        if existing_rating:
-            existing_rating.rating = rating_value
-            existing_rating.review = review
-        else:
-            new_rating = Rating(expert_id=id, user_id=user_id, rating=rating_value, review=review)
-            db.session.add(new_rating)
-        
-        db.session.commit()
-        return {'message': 'Rating submitted successfully', 'average_rating': expert.get_average_rating()}, 200
+        return {'message': 'Successfully unfollowed expert', 'is_following': False}, 200

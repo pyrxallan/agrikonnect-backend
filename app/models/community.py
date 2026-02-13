@@ -1,24 +1,17 @@
 from ..extensions import db
 from .base import BaseModel
-
-# Association table for community members
-community_members = db.Table('community_members',
-    db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
-    db.Column('community_id', db.Integer, db.ForeignKey('communities.id'), primary_key=True),
-    db.Column('joined_at', db.DateTime, default=db.func.current_timestamp())
-)
+from .follower import community_members
 
 class Community(BaseModel):
     __tablename__ = 'communities'
 
     name = db.Column(db.String(100), nullable=False, unique=True, index=True)
     description = db.Column(db.Text)
-    category = db.Column(db.String(50))
-    creator_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-
+    image_url = db.Column(db.String(255))
+    category = db.Column(db.String(50), index=True)
+    
     # Relationships
     members = db.relationship('User', secondary=community_members, backref='communities', lazy='dynamic')
-    creator = db.relationship('User', foreign_keys=[creator_id], backref='created_communities')
 
     # Constraints
     __table_args__ = (
@@ -26,19 +19,22 @@ class Community(BaseModel):
         db.CheckConstraint("length(name) <= 100", name='community_name_max_length'),
     )
 
-    def to_dict(self, include_members=False):
+    def to_dict(self, current_user_id=None, include_counts=True):
         base_dict = super().to_dict()
-        result = {
+        data = {
             **base_dict,
             'name': self.name,
             'description': self.description,
-            'category': self.category,
-            'members': self.members.count(),
-            'creator_id': self.creator_id
+            'image_url': self.image_url,
+            'category': self.category
         }
-        if include_members:
-            result['member_list'] = [m.to_dict() for m in self.members.all()]
-        return result
+        
+        if include_counts:
+            data['members_count'] = self.members.count()
+            if current_user_id:
+                data['is_member'] = self.members.filter_by(id=current_user_id).count() > 0
+        
+        return data
 
     def __repr__(self):
         return f'<Community {self.name}>'
