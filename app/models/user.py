@@ -22,10 +22,10 @@ class User(BaseModel):
     is_active = db.Column(db.Boolean, default=True, nullable=False,
                           server_default='true')
     
-    # Expert-specific fields
-    title = db.Column(db.String(100))  # e.g., "Agricultural Specialist"
-    specialties = db.Column(db.JSON)  # List of specialties
-    is_verified = db.Column(db.Boolean, default=False)
+    # Expert-specific fields - Commented out for production
+    # title = db.Column(db.String(100))  # e.g., "Agricultural Specialist"
+    # specialties = db.Column(db.JSON)  # List of specialties
+    # is_verified = db.Column(db.Boolean, default=False)
 
     # Password reset fields
     password_reset_token = db.Column(db.String(255), nullable=True)
@@ -92,9 +92,9 @@ class User(BaseModel):
         
         if self.role == 'expert':
             data.update({
-                'title': self.title,
-                'specialties': self.specialties or [],
-                'is_verified': self.is_verified
+                'title': getattr(self, 'title', None),
+                'specialties': getattr(self, 'specialties', []),
+                'is_verified': getattr(self, 'is_verified', False)
             })
         
         if include_stats:
