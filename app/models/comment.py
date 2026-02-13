@@ -9,12 +9,12 @@ class Comment(BaseModel):
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     community_id = db.Column(db.Integer, db.ForeignKey('communities.id'), nullable=True, index=True)
 
-    # ADD THESE RELATIONSHIPS
+    # Associations and relationships
     author = db.relationship('User', foreign_keys=[author_id])
     post = db.relationship('Post', foreign_keys=[post_id])
     community = db.relationship('Community', foreign_keys=[community_id], backref='community_messages')
 
-    # Constraints
+    # Constraints and indexes for performance and data integrity
     __table_args__ = (
         db.CheckConstraint("length(content) >= 1", name='comment_content_not_empty'),
         db.Index('idx_comment_post_author', 'post_id', 'author_id'),
@@ -36,5 +36,6 @@ class Comment(BaseModel):
             } if self.author else None,
         }
 
+    # String representation for debugging
     def __repr__(self):
         return f'<Comment {self.content[:30]}...>'

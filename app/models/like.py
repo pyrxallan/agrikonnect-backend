@@ -4,6 +4,7 @@ from .base import BaseModel
 class Like(BaseModel):
     __tablename__ = 'likes'
 
+   # Associations and relationships
     post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
 
@@ -11,6 +12,7 @@ class Like(BaseModel):
         db.UniqueConstraint('post_id', 'user_id', name='unique_post_like'),
     )
 
+   # String representation for debugging
     def to_dict(self):
         return {
             **super().to_dict(),

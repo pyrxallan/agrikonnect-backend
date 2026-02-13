@@ -1,3 +1,4 @@
+
 from flask_restx import Namespace, Resource, fields
 from flask import request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -10,12 +11,13 @@ from ..utils.validation import (
     sanitize_string,
     validate_url
 )
+# handle file uploads securely
 from werkzeug.utils import secure_filename
 import os
 
 post_ns = Namespace('posts', description='Post operations')
 
-# Models
+# Models for API documentation and validation
 post_model = post_ns.model('Post', {
     'title': fields.String(required=True, description='Post title', min_length=1, max_length=255),
     'content': fields.String(required=True, description='Post content', min_length=1),
@@ -27,6 +29,7 @@ comment_model = post_ns.model('Comment', {
     'content': fields.String(required=True, description='Comment content', min_length=1, max_length=1000)
 })
 
+# File upload handling in post creation
 @post_ns.route('')
 class PostList(Resource):
     @post_ns.doc('list_posts', params={
@@ -50,17 +53,18 @@ class PostList(Resource):
             if author_id:
                 query = query.filter_by(author_id=author_id)
             
-            # Use eager loading to prevent N+1 queries (guard against mapping timing issues)
+            # Load author relationships
             try:
                 query = query.options(joinedload(Post.author))
             except AttributeError:
-                # If relationship attribute isn't available yet (import/mapping order), skip eager load
+                # If relationship attribute isn't available skip eager loading
                 current_app.logger.warning('Post.author relationship not available for joinedload; skipping eager load')
             
             paginated = query.order_by(Post.created_at.desc()).paginate(
                 page=page, per_page=per_page, error_out=False
             )
             
+            # Serialize posts with current user context 
             posts_list = []
             current_user_id = None
             try:
@@ -87,53 +91,88 @@ class PostList(Resource):
             current_app.logger.exception('Failed to fetch posts')
             return {'error': 'Failed to fetch posts'}, 500
     
+    # Create post with optional image upload
     @jwt_required()
-    @post_ns.expect(post_model)
-    @post_ns.doc('create_post')
+    @post_ns.doc('create_post', params={})
     def post(self):
         """Create a new post (accepts optional image upload)"""
         try:
-            # Accept JSON or form data
-            data = request.form.to_dict() if request.form else (request.get_json(silent=True) or {})
             current_user_id = get_jwt_identity()
+            
+            # Log request details
+            current_app.logger.info(f'POST /api/v1/posts - Content-Type: {request.content_type}')
+            current_app.logger.info(f'Form data present: {bool(request.form)}')
+            current_app.logger.info(f'Files: {list(request.files.keys())}')
+            
+            # Support both form data and JSON
+            if request.form:
+                data = request.form.to_dict()
+                current_app.logger.info(f'Using form data: {list(data.keys())}')
+            else:
+                try:
+                    data = request.get_json(force=True, silent=False) or {}
+                    current_app.logger.info(f'Using JSON data: {list(data.keys())}')
+                except Exception as e:
+                    current_app.logger.error(f'Failed to parse JSON: {str(e)}')
+                    data = {}
 
-            # Validate required fields (content or title required)
-            is_valid, error = validate_required_fields(data, ['title', 'content'])
+            # Validate required fields - only content is required, title can be derived
+            is_valid, error = validate_required_fields(data, ['content'])
             if not is_valid:
+                current_app.logger.warning(f'Validation failed: {error} - Received fields: {list(data.keys())}')
                 return {'error': error}, 400
 
             # Sanitize and validate title
-            title = sanitize_string(data.get('title'), 255)
+            # If title is not provided, use first line of content
+            title = data.get('title')
+            if not title:
+                # Use first line of content as title
+                content_raw = data.get('content', '')
+                title = content_raw.split('\n')[0] if content_raw else ''
+                current_app.logger.info(f'Title not provided, using first line of content: {title[:50]}')
+            
+            title = sanitize_string(title, 255)
             is_valid, error = validate_string_length(title, 1, 255, 'Title')
             if not is_valid:
                 return {'error': error}, 400
 
-            # Sanitize and validate content
+            # Clean and validate content
             content = sanitize_string(data.get('content'))
             is_valid, error = validate_string_length(content, 1, None, 'Content')
             if not is_valid:
                 return {'error': error}, 400
 
-            # Handle image file upload if present
+            # Handle image upload or URL
             image_url = data.get('image_url')
             image_file = request.files.get('image') or request.files.get('file')
+            current_app.logger.info(f'Image handling - Available files: {list(request.files.keys())}, File found: {image_file is not None}')
+            
             if image_file:
+                current_app.logger.info(f'Processing image file: {image_file.filename}')
                 filename = secure_filename(image_file.filename)
                 if '.' in filename:
                     ext = filename.rsplit('.', 1)[1].lower()
                 else:
                     ext = ''
-                allowed = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+                allowed = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif'}
                 if ext not in allowed:
-                    return {'error': 'Invalid image file type'}, 400
+                    current_app.logger.warning(f'Invalid image extension: {ext}')
+                    return {'error': f'Invalid image file type. Allowed: {", ".join(allowed)}'}, 400
 
                 upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
                 save_dir = os.path.abspath(os.path.join(current_app.root_path, '..', upload_folder))
                 os.makedirs(save_dir, exist_ok=True)
                 unique_name = f"post_{current_user_id}_{int(__import__('time').time())}.{ext}"
                 dest = os.path.join(save_dir, unique_name)
-                image_file.save(dest)
-                image_url = f"/uploads/{unique_name}"
+                try:
+                    image_file.save(dest)
+                    current_app.logger.info(f'Image saved successfully: {dest}')
+                    image_url = f"/uploads/{unique_name}"
+                except Exception as e:
+                    current_app.logger.error(f'Failed to save image: {str(e)}')
+                    return {'error': f'Failed to save image: {str(e)}'}, 500
+            else:
+                current_app.logger.info('No image file provided')
 
             if image_url:
                 image_url = sanitize_string(image_url, 500)
@@ -150,8 +189,12 @@ class PostList(Resource):
 
             db.session.add(post)
             db.session.commit()
+            
+            post_dict = post.to_dict()
+            current_app.logger.info(f'Post created successfully - ID: {post.id}, Image URL: {image_url}')
+            current_app.logger.info(f'Post response includes: title={post_dict.get("title")}, image_url={post_dict.get("image_url")}')
 
-            return {'message': 'Post created', 'post': post.to_dict()}, 201
+            return {'message': 'Post created', 'post': post_dict}, 201
         except Exception as e:
             db.session.rollback()
             current_app.logger.exception('Failed to create post')
@@ -214,6 +257,8 @@ class PostDetail(Resource):
             db.session.rollback()
             return {'error': 'Failed to update post'}, 500
     
+    # Delete a post
+
     @jwt_required()
     @post_ns.doc('delete_post')
     def delete(self, post_id):
@@ -235,6 +280,7 @@ class PostDetail(Resource):
             db.session.rollback()
             return {'error': 'Failed to delete post'}, 500
 
+# Comments on a post
 @post_ns.route('/<int:post_id>/comments')
 class PostComments(Resource):
     @jwt_required()
@@ -248,13 +294,14 @@ class PostComments(Resource):
         comments = Comment.query.filter_by(post_id=post_id).order_by(Comment.created_at.desc()).all()
         return {'comments': [c.to_dict() for c in comments]}
     
+    # Add a comment to a post
     @jwt_required()
     @post_ns.expect(comment_model)
     @post_ns.doc('create_comment')
     def post(self, post_id):
         """Add a comment to a post"""
         try:
-            current_user_id = get_jwt_identity()
+            current_user_id = int(get_jwt_identity())
             post = Post.query.get(post_id)
             
             if not post:
@@ -275,34 +322,38 @@ class PostComments(Resource):
             comment = Comment(
                 content=content,
                 post_id=post_id,
-                author_id=int(current_user_id)
+                author_id=current_user_id
             )
             
             db.session.add(comment)
             
             # Create notification if not commenting on own post
-            if post.author_id != int(current_user_id):
+            if post.author_id != current_user_id:
                 from ..models import Notification
                 user = User.query.get(current_user_id)
-                notification = Notification(
-                    user_id=post.author_id,
-                    title='New Comment',
-                    message=f"{user.first_name} {user.last_name} commented on your post",
-                    type='comment',
-                    related_id=post_id
-                )
-                db.session.add(notification)
+                if user:
+                    notification = Notification(
+                        user_id=post.author_id,
+                        title='New Comment',
+                        message=f"{user.first_name} {user.last_name} commented on your post",
+                        type='comment',
+                        related_id=post_id
+                    )
+                    db.session.add(notification)
             
             db.session.commit()
             
             # Refresh to load the author relationship
             db.session.refresh(comment)
+            current_app.logger.info(f'Comment added successfully - ID: {comment.id}, Post: {post_id}')
             
             return {'message': 'Comment added', 'comment': comment.to_dict()}, 201
         except Exception as e:
             db.session.rollback()
-            return {'error': 'Failed to add comment'}, 500
+            current_app.logger.exception(f'Failed to add comment: {str(e)}')
+            return {'error': f'Failed to add comment: {str(e)}'}, 500
 
+# Like and unlike a post           
 @post_ns.route('/<int:post_id>/like')
 class PostLike(Resource):
     @jwt_required()
