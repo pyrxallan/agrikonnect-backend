@@ -5,5 +5,6 @@ set -o errexit
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Run database migrations
-flask db upgrade
+# Stamp database to current state and run migrations
+flask db stamp head || true
+flask db upgrade || flask db stamp head
