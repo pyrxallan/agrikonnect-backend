@@ -201,12 +201,9 @@ def get_conversation_short(other_user_id):
             msg_dict = msg.to_dict()
             msg_dict['is_own'] = msg.sender_id == user_id
             msg_dict['timestamp'] = msg.created_at.isoformat() if msg.created_at else None
-            
-            # Add sender name
-            sender = User.query.get(msg.sender_id)
-            if sender:
-                msg_dict['sender_name'] = f"{sender.first_name} {sender.last_name}"
-            
+            # Flatten sender info for frontend
+            if msg_dict.get('sender'):
+                msg_dict['sender_name'] = f"{msg_dict['sender']['first_name']} {msg_dict['sender']['last_name']}"
             result.append(msg_dict)
         
         return jsonify(result), 200
