@@ -113,8 +113,8 @@ def create_app(config_class=Config):
         return send_from_directory(os.path.join(app.root_path, '..', 'uploads'), filename)
 
     register_routes(api)
-    app.register_blueprint(messages_bp)
-    app.register_blueprint(users_bp)
+    app.register_blueprint(messages_bp, url_prefix='/api/v1')
+    app.register_blueprint(users_bp, url_prefix='/api/v1')
     
     app.logger.info('Routes registered successfully')
 
