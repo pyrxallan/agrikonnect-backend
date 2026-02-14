@@ -40,9 +40,37 @@ class SendMessage(Resource):
 class Inbox(Resource):
     @jwt_required()
     def get(self):
-        user_id = get_jwt_identity()
-        messages = Message.query.filter_by(receiver_id=user_id).order_by(Message.created_at.desc()).all()
-        return [m.to_dict() for m in messages], 200
+        user_id = int(get_jwt_identity())
+        
+        messages = Message.query.filter(
+            db.or_(Message.sender_id == user_id, Message.receiver_id == user_id)
+        ).order_by(Message.created_at.desc()).all()
+        
+        conversations = {}
+        for msg in messages:
+            other_user_id = msg.sender_id if msg.sender_id != user_id else msg.receiver_id
+            if other_user_id not in conversations:
+                conversations[other_user_id] = msg
+        
+        result = []
+        for other_user_id, msg in conversations.items():
+            if other_user_id == user_id:
+                continue
+                
+            other_user = User.query.get(other_user_id)
+            if other_user:
+                result.append({
+                    'user_id': other_user.id,
+                    'username': f"{other_user.first_name} {other_user.last_name}",
+                    'first_name': other_user.first_name,
+                    'last_name': other_user.last_name,
+                    'role': other_user.role,
+                    'profile_image': other_user.profile_image,
+                    'last_message': msg.content,
+                    'last_message_time': msg.created_at.isoformat()
+                })
+        
+        return result, 200
 
 
 @message_ns.route('/sent')
