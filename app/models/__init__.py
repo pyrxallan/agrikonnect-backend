@@ -7,5 +7,6 @@ from .community import Community
 from .message import Message
 from .notification import Notification
 from .like import Like
+from .marketplace import Product, Order, Payment
 
-__all__ = ['BaseModel', 'User', 'Post', 'Comment', 'Community', 'Message', 'Notification', 'Like', 'followers', 'community_members']
+__all__ = ['BaseModel', 'User', 'Post', 'Comment', 'Community', 'Message', 'Notification', 'Like', 'followers', 'community_members', 'Product', 'Order', 'Payment']

@@ -147,5 +147,14 @@ dmypy.json
 .DS_Store
 Thumbs.db
 
+# Uploads folder
+uploads/*
+!uploads/.gitkeep
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+
 migrations/versions/__pycache__/  # Add to .gitignore
 *.pyc

@@ -15,6 +15,7 @@ from app.routes.messages import messages_bp
 from app.routes.users import users_bp
 from app.models import Notification
 from app.utils.logging_config import setup_logging, log_request
+from app.routes.marketplace import marketplace_bp
 
 jwt_blocklist = set()
 
@@ -115,6 +116,7 @@ def create_app(config_class=Config):
     register_routes(api)
     app.register_blueprint(messages_bp, url_prefix='/api/v1')
     app.register_blueprint(users_bp, url_prefix='/api/v1')
+    app.register_blueprint(marketplace_bp, url_prefix='/api/marketplace')
     
     app.logger.info('Routes registered successfully')
 
